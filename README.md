@@ -17,15 +17,17 @@ Required Python 3 packages:
 
 ## Base configuration
 The base configuration provides settings for all the tools. Here you can specify the log root directory and notification
-settings. The tools expect to find these settings in a file named 'conf.yml' in the same directory as the specific 
-config files for the individual tools (this defaults to ~/.abackup). 
+settings. The tools expect to find these settings in a file named `conf.yml` in the same directory as the specific 
+config files for the individual tools (this defaults to `~/.abackup`). 
 
+```
 log_root: '~/.abackup/logs/foo' # optional
 notification: # optional
   slack: # optional
     api_url: 'https://hooks.slack.com/services/foo/bar'
     username: 'abackup' #optional
     channel: '#server-alerts' #optional
+```
 
 ## abackup
 
@@ -33,23 +35,24 @@ A tool for backups and restorations (primarily for docker containers).
 
 Currently it uses tar to create archieves of directories in a container and mysqldump to create mysql backups. The
 backups are copied inside the backup_root (see configuration below). The directory structure is based on the project
-name and conatiner name:
-$backup_root/$project_name/$container_name/$db_name.sql
-$backup_root/$project_name/$container_name/$dir_name.tar.gz
+name and container name: `$backup_root/$project_name/$container_name/$db_name.sql`, `$backup_root/$project_name/$container_name/$dir_name.tar.gz`, etc.
 
 ### Configuration
 The specific config file for the abackup tool has the following settings:
 
+```
 backup_root: /path/to/directory/to/store/backups
 permissions: # optional
   group: abackup # optional
   directories: "2770" # optional
   files: "660" # optional
+```
 
 #### Project Config
 The abackup tool also requires a project level config file for each project you want to backup. These are typically
-kept with the project itself and named '.abackup.yml'.
+kept with the project itself and named `.abackup.yml`.
 
+```
 containers:
   test-container:
     databases: # optional
@@ -99,6 +102,7 @@ containers:
         - frequency: "0 0 * * *"
           notify: "always"
       docker_options: [] # optional
+```
 
 ## abdata
 
@@ -107,6 +111,7 @@ A tool for monitoring storage health. Works for ZFS pools and mdadm managed raid
 ### Configuration
 The specific config file for the abdata tool has the following settings:
 
+```
 drivers:
   mdadm:
     pools:
@@ -126,7 +131,7 @@ drivers:
             notify: auto # optional
           - frequency: "0 3 * 1 *" # optional
             notify: always # optional
-
+```
 
 ## absync
 
@@ -135,6 +140,7 @@ A tool for syncing data between hosts. Works over ssh with rsync.
 ### Configuration
 The specific config file for the absync tool has the following settings:
 
+```
 owned_data: # optional
   o1:
     path: /path/to/owned/data/o1
@@ -166,3 +172,4 @@ remotes:  # optional
     ssh_key: /home/foo/.ssh/id_rsa # optional
   r2:
     host: some.domain.xyz
+```
