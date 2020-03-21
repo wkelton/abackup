@@ -1,0 +1,5 @@
+backup_root: ./data
+permissions:
+  group: abackup
+  directories: "2770"
+  files: "660"

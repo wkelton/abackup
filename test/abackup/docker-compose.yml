@@ -1,0 +1,18 @@
+version: '3.3'
+
+services:
+  test-container:
+    image: mysql:8
+    container_name: test-container
+    volumes:
+      - type: volume
+        source: test_data
+        target: /data 
+    environment:
+        MYSQL_ROOT_PASSWORD: "foobar"
+        MYSQL_DATABASE: "testdb"
+        MYSQL_USER: "testuser"
+        MYSQL_PASSWORD: "testpass"
+
+volumes:
+  test_data:

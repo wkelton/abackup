@@ -1,0 +1,39 @@
+containers:
+  test-container:
+    directories:
+      - /data/foo
+    databases:
+      - name: testdb
+        driver: mysql
+        password: "foobar"
+    backup:
+      pre_commands:
+        - command_type: docker
+          command_string: mkdir -p /data/foo/bar
+          in_container: True
+          docker_options: { }
+        - command_type: docker
+          command_string: echo "foobar" > /data/foo/t1.txt
+          in_container: True
+          docker_options: { }
+        - command_type: docker
+          command_string: echo "more bar" > /data/foo/bar/t2.txt
+          in_container: True
+          docker_options: { }
+        - command_type: command
+          command_string: echo "foo"
+        - echo "foobar"
+      post_commands:
+        - command_type: docker
+          command_string: echo "even more foo" >> /data/foo/t1.txt
+          in_container: True
+          docker_options: { }
+        - command_type: docker
+          command_string: echo "even more bar" >> /data/foo/bar/t2.txt
+          in_container: True
+          docker_options: { }
+      version_count: 5
+      auto_backup:
+        - frequency: "0 0 * * *"
+          notify: "always"
+    restore: { }
