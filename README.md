@@ -49,8 +49,8 @@ permissions: # optional
 ```
 
 #### Project Config
-The abackup tool also requires a project level config file for each project you want to backup. These are typically
-kept with the project itself and named `.abackup.yml`.
+The abackup tool also requires a project level config file for each project you want to backup. These files are typically
+managed along with your project files (e.g. kept at the root of your git repo with your docker-compose file) and named `.abackup.yml`.
 
 ```
 containers:
