@@ -12,7 +12,7 @@ Built all in Python 3.
 Required Python 3 packages:
 * click
 * mdstat
-* pythno-cronTab
+* python-cronTab
 * tabulate
 
 ## Base configuration
