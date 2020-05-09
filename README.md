@@ -57,8 +57,11 @@ containers:
         driver: mysql
         password: "foobar"
       - name: testdb2
-        driver: msyql
-        password: "barfoo"
+        driver: postgres
+        user: postgres # optional
+        options: # optional
+          dump_all: False # optional
+          restore_all: False # optional
 
     directories: # optional
       - /data/foo

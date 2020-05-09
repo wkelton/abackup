@@ -98,16 +98,55 @@ class MySqlBRCommand(DockerCommand):
         return "{} {}".format(self.mysql_command, self.name)
 
 
-class DBBackupCommand(MySqlBRCommand):
+class MysqlBackupCommand(MySqlBRCommand):
     def __init__(self, name: str, password: str, backup_path: str, container_name: str, docker_options: List[str]):
         super().__init__(name, password, 'mysqldump', ['--single-transaction'], backup_path, container_name,
             docker_options, output_path=MySqlBRCommand.default_backup_file(backup_path, name))
 
 
-class DBRestoreCommand(MySqlBRCommand):
+class MysqlRestoreCommand(MySqlBRCommand):
     def __init__(self, name: str, password: str, backup_path: str, container_name: str, docker_options: List[str]):
         super().__init__(name, password, 'mysql', [], backup_path, container_name, docker_options,
             input_path=MySqlBRCommand.default_backup_file(backup_path, name))
+
+
+class PostgresBRCommand(DockerCommand):
+    def __init__(self, name: str, postgres_command: str, postgres_options: List[str], backup_path: str, container_name: str,
+        docker_options: List[str], user: str = None, password: str = None, input_path: str = None, output_path: str = None):
+        self.postgres_command = postgres_command
+        self.name = name
+        #TODO: support using 'password'
+        popts = postgres_options + ['-U', user] if user else postgres_options
+        self.backup_file = PostgresBRCommand.default_backup_file(backup_path, name)
+        dopts = docker_options + ['-i']
+        super().__init__('{} {}'.format(postgres_command, " ".join(popts)), container_name, dopts,
+            input_path=input_path, output_path=output_path, in_container=True)
+
+    @classmethod
+    def default_backup_file(cls, backup_path, name):
+        return os.path.join(backup_path, "{}.sql".format(name))
+
+    def friendly_str(self):
+        return "{} {}".format(self.postgres_command, self.name)
+
+
+class PostgresBackupCommand(PostgresBRCommand):
+    def __init__(self, name: str, backup_path: str, container_name: str, docker_options: List[str], user: str = None,
+        password: str = None, dump_all: bool = False):
+        postgress_command = 'pg_dump'
+        postgres_options = ['-d', name]
+        if dump_all:
+            postgress_command = 'pg_dumpall'
+            postgres_options = []
+        super().__init__(name, postgress_command, postgres_options, backup_path, container_name, docker_options, user, password,
+            output_path=PostgresBRCommand.default_backup_file(backup_path, name))
+
+
+class PostgresRestoreCommand(PostgresBRCommand):
+    def __init__(self, name: str, backup_path: str, container_name: str, docker_options: List[str], user: str, password: str,
+        restore_all: bool = False):
+        super().__init__(name, 'psql', ['-d', 'postgres'] if restore_all else ['-d', name], backup_path, 
+            container_name, docker_options, user, password, input_path=PostgresBRCommand.default_backup_file(backup_path, name))
 
 
 class DirectoryBackupCommand(DockerCommand):

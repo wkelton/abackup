@@ -1,9 +1,9 @@
 version: '3.3'
 
 services:
-  test-container:
+  test_mysql:
     image: mysql:8
-    container_name: test-container
+    container_name: test-mysql
     volumes:
       - type: volume
         source: test_data
@@ -14,5 +14,14 @@ services:
         MYSQL_USER: "testuser"
         MYSQL_PASSWORD: "testpass"
 
+  test_postgres:
+    image: postgres:12
+    container_name: test-postgres
+    volumes:
+      - test_postgres
+    environment:
+      POSTGRES_PASSWORD: "testpass"
+
 volumes:
   test_data:
+  test_postgres:

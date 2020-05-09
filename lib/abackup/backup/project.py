@@ -4,7 +4,7 @@ import yaml
 from typing import Any, Dict, List
 
 from abackup import notifications
-from abackup.docker import Command, DockerCommand, DirectoryBackupCommand, DirectoryRestoreCommand, DBBackupCommand, DBRestoreCommand
+from abackup.docker import Command, DockerCommand, DirectoryBackupCommand, DirectoryRestoreCommand, MysqlBackupCommand, MysqlRestoreCommand, PostgresBackupCommand, PostgresRestoreCommand
 
 
 def build_commands(command_input: List[Any], container_name: str):
@@ -26,15 +26,15 @@ def build_commands(command_input: List[Any], container_name: str):
 
 class RestoreSettings:
     def __init__(self, container_name: str, pre_commands: List[Dict[str, Any]] = None,
-        post_commands: List[Dict[str, Any]] = None, docker_options: List[str] = None,
-        custom: List[Dict[str, Any]] = None):
+        post_commands: List[Dict[str, Any]] = None, docker_options: List[str] = None, custom: List[Dict[str, Any]] = None):
         self.docker_options = docker_options if docker_options else [ ]
         self.pre_commands = build_commands(pre_commands, container_name)
         self.post_commands = build_commands(post_commands, container_name)
         self.custom_commands = build_commands(custom, container_name)
 
     def __str__(self):
-        return "pre:{} post:{} options:{} custom:{}".format(len(self.pre_commands), len(self.post_commands), len(self.docker_options), len(self.custom_commands))
+        return "pre:{} post:{} options:{} custom:{}".format(len(self.pre_commands), len(self.post_commands),
+            len(self.docker_options), len(self.custom_commands))
 
 
 class AutoBackup:
@@ -61,15 +61,77 @@ class BackupSettings:
             len(self.pre_commands), len(self.post_commands), self.version_count, len(self.auto_backups),
             len(self.docker_options))
 
+##
+# Mysql
+
+class MysqlDriverOptions:
+    def __init__(self):
+        pass
+
+
+def build_mysql_backup_command(name: str, password: str, backup_path: str, container_name: str, docker_options: List[str],
+    user: str = None, options: MysqlDriverOptions = MysqlDriverOptions()):
+    return MysqlBackupCommand(name, password, backup_path, container_name, docker_options)
+
+
+def build_mysql_restore_command(name: str, password: str, backup_path: str, container_name: str, docker_options: List[str],
+    user: str = None, options: MysqlDriverOptions = MysqlDriverOptions()):
+    return MysqlRestoreCommand(name, password, backup_path, container_name, docker_options)
+
+##
+# Postgres
+
+class PostgresDriverOptions:
+    def __init__(self, dump_all: bool = False, restore_all: bool = False):
+        self.dump_all = dump_all
+        self.restore_all = restore_all
+
+
+def build_postgres_backup_command(name: str, backup_path: str, container_name: str, docker_options: List[str],
+    user: str = None, password: str = None, options: PostgresDriverOptions = PostgresDriverOptions()):
+    return PostgresBackupCommand(name, backup_path, container_name, docker_options, user=user,
+        password=password, dump_all=options.dump_all)
+
+
+def build_postgres_restore_command(name: str, backup_path: str, container_name: str, docker_options: List[str],
+    user: str = None, password: str = None, options: PostgresDriverOptions = PostgresDriverOptions()):
+    return PostgresRestoreCommand(name, backup_path, container_name, docker_options, user=user,
+        password=password, restore_all=options.restore_all)
+
+##
+# Database
 
 class DatabaseInfo:
-    def __init__(self, name: str, driver: str, password: str):
+    def __init__(self, name: str, driver: str, user: str = None, password: str = None,
+        options: Dict[str, Any] = None):
         self.name = name
-        self.driver = driver
+        self.driver_name = driver
+        self.user = user
         self.password = password
+        self.options = options if options else {}
 
     def __str__(self):
-        return "{} := {}".format(self.name, self.driver)
+        return "{} := {}".format(self.name, self.driver_name)
+
+
+def build_db_backup_command(database_info: DatabaseInfo, backup_path: str, container_name: str, docker_options: List[str]):
+    if database_info.driver_name.lower() == 'mysql':
+        return build_mysql_backup_command(database_info.name, database_info.password, backup_path, container_name,
+            docker_options, user=database_info.user, options=MysqlDriverOptions(**database_info.options))
+    elif database_info.driver_name.lower() == 'postgres':
+        return build_postgres_backup_command(database_info.name, backup_path, container_name, docker_options,
+            user=database_info.user, password=database_info.password, options=PostgresDriverOptions(**database_info.options))
+    return None
+
+
+def build_db_restore_command(database_info: DatabaseInfo, backup_path: str, container_name: str, docker_options: List[str]):
+    if database_info.driver_name.lower() == 'mysql':
+        return build_mysql_restore_command(database_info.name, database_info.password, backup_path, container_name,
+            docker_options, user=database_info.user, options=MysqlDriverOptions(**database_info.options))
+    elif database_info.driver_name.lower() == 'postgres':
+        return build_postgres_restore_command(database_info.name, backup_path, container_name, docker_options,
+            user=database_info.user, password=database_info.password, options=PostgresDriverOptions(**database_info.options))
+    return None
 
 
 class Container:
@@ -88,27 +150,27 @@ class Container:
 
     def build_directory_backup_commands(self, backup_path: str):
         if self.backup:
-            return [ DirectoryBackupCommand(cdir, backup_path, self.name, self.backup.docker_options)
-                for cdir in self.directories ]
-        return [ ]
+            return [DirectoryBackupCommand(cdir, backup_path, self.name, self.backup.docker_options)
+                for cdir in self.directories]
+        return []
 
     def build_directory_restore_commands(self, backup_path: str):
         if self.restore:
-            return [ DirectoryRestoreCommand(cdir, backup_path, self.name, self.restore.docker_options)
-                for cdir in self.directories ]
-        return [ ]
+            return [DirectoryRestoreCommand(cdir, backup_path, self.name, self.restore.docker_options)
+                for cdir in self.directories]
+        return []
 
     def build_database_backup_commands(self, backup_path: str):
         if self.backup:
-            return [ DBBackupCommand(dbinfo.name, dbinfo.password, backup_path, self.name,
-                self.backup.docker_options) for dbinfo in self.databases ]
-        return [ ]
+            return [build_db_backup_command(info, backup_path, self.name, self.backup.docker_options)
+                for info in self.databases]
+        return []
 
     def build_database_restore_commands(self, backup_path: str):
-        if self.backup:
-            return [ DBRestoreCommand(dbinfo.name, dbinfo.password, backup_path, self.name,
-                self.restore.docker_options) for dbinfo in self.databases ]
-        return [ ]
+        if self.restore:
+            return [build_db_restore_command(info, backup_path, self.name, self.restore.docker_options)
+                for info in self.databases]
+        return []
 
 
 class ProjectConfig:

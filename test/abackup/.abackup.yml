@@ -1,5 +1,5 @@
 containers:
-  test-container:
+  test-mysql:
     directories:
       - /data/foo
     databases:
@@ -37,3 +37,15 @@ containers:
         - frequency: "0 0 * * *"
           notify: "always"
     restore: { }
+
+  test-postgres:
+    databases:
+      - name: testdb
+        driver: postgres
+        user: postgres
+        options:
+          dump_all: True
+          restore_all: True
+    backup:
+      version_count: 2
+    restore: {}
