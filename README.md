@@ -188,6 +188,8 @@ owned_data: # optional
 stored_data:  # optional
   s1:
     path: /path/to/stored/data/s1
+    auto_sync: # optional
+      - remote_name: r1
   s2:
     path: /path/to/stored/data/s2
 

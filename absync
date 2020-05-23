@@ -71,6 +71,28 @@ def stored_path(ctx, name: str):
         exit(1)
 
 
+@cli.command('owned-path')
+@click.pass_context
+@click.argument('name')
+def owned_path(ctx, name: str):
+    """Get the path to the owned data for NAME
+    """
+    config = ctx.obj['config']
+    log = ctx.obj['log']
+
+    log.info("--- owned-path lookup for {}".format(name))
+    if name in config.owned_data:
+        path = config.owned_data[name].path
+        log.info("{}: {}".format(name, path))
+        print(path, end="")
+        log.info("--- end owned-path")
+    else:
+        log.error("{} not present in config!".format(name))
+        print("{} not present in config!".format(name), file=sys.stderr)
+        log.info("--- end owned-path")
+        exit(1)
+
+
 @cli.command()
 @click.pass_context
 @click.option('--data-dir', help="Data directory to examine. "
@@ -103,7 +125,7 @@ def update_cron(ctx):
 
     log.info("{} data directory(s)".format(len(config.owned_data.keys())))
 
-    ret = perform_update_cron(config.owned_data, absync_options, cron, log)
+    ret = perform_update_cron(config.owned_data, config.stored_data, absync_options, cron, log)
 
     if ret:
         log.info("--- Crontab updated.")
@@ -119,41 +141,70 @@ def update_cron(ctx):
 @click.option('--port', help="Port to use when connecting to remote.")
 @click.argument('local-name')
 @click.argument('destination')
-def sync(ctx, delete: bool, max_delete: int, port: int, local_name: str, destination: str):
-    """Sync LOCAL_NAME data with DESTINATION
+def push(ctx, delete: bool, max_delete: int, port: int, local_name: str, destination: str):
+    """Push LOCAL_NAME data to DESTINATION
 
     This will copy data identified by LOCAL_NAME in the config file to DESTINATION.
 
     LOCAL_NAME must be a a name of a configured owned_data path.
-    DESTINATION can be on a remote
+    DESTINATION can be on a remote.
     """
     config = ctx.obj['config']
     log = ctx.obj['log']
 
-    log.info("--- sync started")
+    log.info("--- push started")
 
-    ret = perform_sync(config, local_name, destination, log, delete, max_delete, port)
+    ret = perform_sync(config, local_name, destination, False, log, delete, max_delete, port)
 
     if ret:
-        log.info("--- sync finished.")
+        log.info("--- push finished.")
     else:
-        log.critical('--- sync failed!')
+        log.critical('--- push failed!')
         exit(1)
 
 
 @cli.command()
 @click.pass_context
-@click.option('--local-name', help="Local data to limit syncing.")
+@click.option('--delete', flag_value=True, help="Disable/enable deletion of data during sync.")
+@click.option('--max-delete', type=int, help="Only allow deletion of this many files during sync.")
+@click.option('--port', help="Port to use when connecting to remote.")
+@click.argument('stored-name')
+@click.argument('source')
+def pull(ctx, delete: bool, max_delete: int, port: int, stored_name: str, source: str):
+    """Pull STORED_NAME data from SOURCE
+
+    This will copy data identified by STORED_NAME in the config file from SOURCE.
+
+    STORED_NAME must be a a name of a configured stored_data path.
+    SOURCE can be on a remote.
+    """
+    config = ctx.obj['config']
+    log = ctx.obj['log']
+
+    log.info("--- pull started")
+
+    ret = perform_sync(config, stored_name, source, True, log, delete, max_delete, port)
+
+    if ret:
+        log.info("--- pull finished.")
+    else:
+        log.critical('--- pull failed!')
+        exit(1)
+
+
+@cli.command()
+@click.pass_context
+@click.option('--data-name', help="owned_data or stored_data name to limit syncing.")
 @click.option('--remote-name', help="Name of the remote host (in auto_sync settings) to limit syncing.")
 @click.option('--sync-type', type=click.Choice(['manual', 'auto']), default='manual',
     help="Name for the type of sycning, used for logging. Defaults to 'manual'.")
 @click.option('--notify', type=click.Choice(['auto', 'always', 'never']), default='never',
     help="Notification setting, auto: notify on failure, always: always notify, never: never notify. Defaults to never.")
 @click.option('--healthchecks', flag_value=True, help="Perform healthcheks if configured.")
-def auto(ctx, local_name: str, remote_name: str, sync_type: str, notify: str, healthchecks: bool):
+def auto(ctx, data_name: str, remote_name: str, sync_type: str, notify: str, healthchecks: bool):
     """Run all the configured auto syncs.
 
-    This will run the sync for all owned_data which has configred auto_sync settings.
+    This will run the sync for all owned_data and stored_data which has configred auto_sync settings.
     """
     config = ctx.obj['config']
     log = ctx.obj['log']
@@ -161,7 +212,7 @@ def auto(ctx, local_name: str, remote_name: str, sync_type: str, notify: str, he
 
     log.info("--- auto sync started")
 
-    ret = perform_auto_sync(config, absync_options, notify, log, local_name, remote_name, sync_type,
+    ret = perform_auto_sync(config, absync_options, notify, log, data_name, remote_name, sync_type,
         do_healthchecks=healthchecks)
 
     if ret:
