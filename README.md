@@ -6,6 +6,8 @@ A collection of tools for backups (for docker), monitoring storage health, and s
 
 Notifications are provided through Slack.
 
+Healthchecks is also supported with Healthchecks.io by default.
+
 Built all in Python 3.
 
 ## Requirements
@@ -27,6 +29,12 @@ notification: # optional
     api_url: 'https://hooks.slack.com/services/foo/bar'
     username: 'abackup' #optional
     channel: '#server-alerts' #optional
+healthchecks: # optional
+  default: # optional
+    base_url: 'https://hc-ping.com' # optional
+    uuid: 'my-uuid' #optional
+    do_include_messages: True # optional
+    do_notify_start: True # optional
 ```
 
 ## abackup
@@ -87,6 +95,11 @@ containers:
         - frequency: "0 0 * * *"
           notify: "always"
       docker_options: [] # optional
+      healthchecks: # optional
+        base_url: 'https://hc-ping.com' # optional
+        uuid: 'my-uuid' #optional
+        do_include_messages: True # optional
+        do_notify_start: True # optional
 
     restore:
       pre_commands: # optional
@@ -100,10 +113,6 @@ containers:
           command_string: echo "even more foo" >> /data/foo/t1.txt
           in_container: True # optional
           docker_options: [] # optional
-      version_count: 1 # optional
-      auto_backup: # optional
-        - frequency: "0 0 * * *"
-          notify: "always"
       docker_options: [] # optional
 ```
 
@@ -125,6 +134,11 @@ drivers:
             notify: auto # optional
           - frequency: "0 3 * 1 *" # optional
             notify: always # optional
+        healthchecks: # optional
+          base_url: 'https://hc-ping.com' # optional
+          uuid: 'my-uuid' #optional
+          do_include_messages: True # optional
+          do_notify_start: True # optional
   zfs:
     pools:
       - name: mainpool
@@ -134,6 +148,11 @@ drivers:
             notify: auto # optional
           - frequency: "0 3 * 1 *" # optional
             notify: always # optional
+        healthchecks: # optional
+          base_url: 'https://hc-ping.com' # optional
+          uuid: 'my-uuid' #optional
+          do_include_messages: True # optional
+          do_notify_start: True # optional
 ```
 
 ## absync
@@ -156,6 +175,11 @@ owned_data: # optional
         frequency: "0 1 * * *" # optional
         options: # optional
           delete: true # optional
+        healthchecks: # optional
+          base_url: 'https://hc-ping.com' # optional
+          uuid: 'my-uuid' #optional
+          do_include_messages: True # optional
+          do_notify_start: True # optional
       - remote_name: r2
 
   o2:

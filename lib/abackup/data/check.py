@@ -5,7 +5,7 @@ import os
 from inspect import currentframe, getframeinfo
 from typing import List
 
-from abackup import fs, mdadm, notifications, zfs
+from abackup import fs, healthchecks as hc, mdadm, notifications, zfs
 from abackup.data import Config, Driver, Pool
 from abackup.fs import PoolState, PoolStatus
 
@@ -49,14 +49,26 @@ def notify_or_log(notifier: notifications.SlackNotifier, status: PoolStatus, not
         log.debug("notify_or_log({}, {}): skipping notify, state:{}".format(status.pool, notify_mode.name, status.state.name))
 
 
-def perform_check(config: Config, drivers: List[Driver], notify: str, log: logging.Logger, pool_name: str = None):
+def perform_check(config: Config, drivers: List[Driver], notify: str, log: logging.Logger, pool_name: str = None,
+    do_healthchecks: bool = True):
+    notify_mode = notifications.Mode(notify)
     for d in drivers:
         log.info("Driver: {}".format(d.name))
         for p in d.pools:
             if not pool_name or p.name == pool_name:
                 log.info("Pool: {}".format(p.name))
+
+                if do_healthchecks and p.healthchecks:
+                    hc.perform_healthcheck_start(config.default_healthcheck, p.healthchecks, p.name, config.notifier,
+                        notify_mode, log)
+
                 status = gather_pool_status(d, p, log)
                 log.info(status)
-                notify_or_log(config.notifier, status, notifications.Mode(notify), log)
+                notify_or_log(config.notifier, status, notify_mode, log)
+
+                if do_healthchecks and p.healthchecks:
+                    hc.perform_healthcheck(config.default_healthcheck, p.healthchecks, p.name, config.notifier,
+                        notify_mode, log, is_fail=status.state != PoolState.HEALTHY,
+                        message="Pool is not healthy: {}".format(status) if status.state != PoolState.HEALTHY else None)
             else:
                 log.debug("Skipping Pool: {}".format(p.name))

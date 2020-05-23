@@ -15,8 +15,9 @@ def perform_update_cron(owned_data: Dict[str, DataDir], absync_options: str, cro
             log.info("skipping {}, no auto_sync settings defined".format(name))
             continue
         for auto_sync in datadir.auto_sync:
-            command = "absync {} auto --sync-type auto --local-name {} --remote-name {} --notify {}".format(
-                absync_options, name, auto_sync.remote_name, auto_sync.notify.value)
+            healthchecks_option = '--healthchecks' if auto_sync.healthchecks else ''
+            command = "absync {} auto --sync-type auto --local-name {} --remote-name {} --notify {} {}".format(
+                absync_options, name, auto_sync.remote_name, auto_sync.notify.value, healthchecks_option)
             comment = "{}".format(auto_sync.remote_name)
             log.debug("command: {}, comment: {}".format(command, comment))
             job = cron.job(command, comment, frequency=auto_sync.frequency if auto_sync.frequency else '0 0 * * *',

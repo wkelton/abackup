@@ -7,7 +7,7 @@ import subprocess
 
 from inspect import currentframe, getframeinfo
 
-from abackup import fs, notifications
+from abackup import fs, healthchecks as hc, notifications
 from abackup.sync import Config, DataDir, Remote, SyncOptions, syncinfo
 
 
@@ -138,30 +138,42 @@ def do_sync(origin: str, destination: str, sync_options: SyncOptions, log: loggi
 
 
 def do_auto_sync(config: Config, local_name: str, data_dir: DataDir, absync_options: str, notify: str,
-    log: logging.Logger, only_remote_name: str = None, sync_type: str = 'manual'):
+    log: logging.Logger, only_remote_name: str = None, sync_type: str = 'manual', do_healthchecks: bool = True):
     sync_succeeded = True
     path = data_dir.path
     syncinfos = []
+    notify_mode = notifications.Mode(notify)
     for auto_sync in data_dir.auto_sync:
         remote_name = auto_sync.remote_name
         if only_remote_name and remote_name != only_remote_name:
             continue
+
+        if do_healthchecks and auto_sync.healthchecks:
+            hc.perform_healthcheck_start(config.default_healthcheck, auto_sync.healthchecks, auto_sync.remote_name,
+                config.notifier, notify_mode, log)
+
+        error_message = None
         remote = config.remotes[remote_name]
         destination = get_stored_path_from_remote(local_name, remote, absync_options, log)
         if destination == False:
-            handle_failed_sync(config.notifier, local_name, remote_name, "Failed to get stored path from remote.",
-                notifications.Mode(notify), log)
+            error_message = "Failed to get stored path from {}!".format(auto_sync.remote_name)
+            handle_failed_sync(config.notifier, local_name, remote_name, error_message, notify_mode, log)
             sync_succeeded = False
         else:
             log.info("syncing {} with {}:{}".format(path, remote_name, destination))
             ret = do_sync(path, destination, data_dir.options.mask(auto_sync.options), log, remote, sync_type)
             if ret == False:
-                handle_failed_sync(config.notifier, local_name, remote_name, "Failed doing sync.",
-                    notifications.Mode(notify), log)
+                error_message = "Failed syncing to {}!".format(auto_sync.remote_name)
+                handle_failed_sync(config.notifier, local_name, remote_name, error_message, notify_mode, log)
                 sync_succeeded = False
             else:
-                handle_sync_results(config.notifier, local_name, remote_name, ret, notifications.Mode(notify), log)
+                handle_sync_results(config.notifier, local_name, remote_name, ret, notify_mode, log)
                 syncinfos.append(ret)
+
+        if do_healthchecks and auto_sync.healthchecks:
+            hc.perform_healthcheck(config.default_healthcheck, auto_sync.healthchecks, auto_sync.remote_name,
+                config.notifier, notify_mode, log, is_fail=not sync_succeeded, message=error_message)
+
     if len(syncinfos) > 0:
         syncinfo.write_sync_infos(syncinfos, config, local_name)
     return sync_succeeded
@@ -204,14 +216,14 @@ def perform_sync(config: Config, local_name: str, destination: str, log: logging
 
 
 def perform_auto_sync(config: Config, absync_options: str, notify: str, log: logging.Logger,
-    only_local_name: str = None, only_remote_name: str = None, sync_type: str = 'manual'):
+    only_local_name: str = None, only_remote_name: str = None, sync_type: str = 'manual', do_healthchecks: bool = True):
     if only_local_name:
         if not only_local_name in config.owned_data:
             log.critical("{} data directory not present in config!".format(only_local_name))
             return False
         log.info("\tonly for {}".format(only_local_name))
         if not do_auto_sync(config, only_local_name, config.owned_data[only_local_name], absync_options, notify, log,
-            only_remote_name, sync_type):
+            only_remote_name, sync_type, do_healthchecks):
             return False
         else:
             return True
@@ -219,5 +231,5 @@ def perform_auto_sync(config: Config, absync_options: str, notify: str, log: log
         sync_succeeded = True
         for name, data_dir in config.owned_data.items():
             sync_succeeded = sync_succeeded and do_auto_sync(config, name, data_dir, absync_options, notify, log,
-                only_remote_name, sync_type)
+                only_remote_name, sync_type, do_healthchecks)
         return sync_succeeded

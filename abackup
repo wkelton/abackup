@@ -139,10 +139,11 @@ def update_cron(ctx, container: str):
 
 @cli.command()
 @click.pass_context
-@click.option('--container', help="Container to use. If not specified, all containers for the project are used")
+@click.option('--container', help="Container to use. If not specified, all containers for the project are used.")
 @click.option('--notify', type=click.Choice([ 'auto', 'always', 'never' ]), default='never',
     help="Notification setting, auto: notify on failure, always: always notify, never: never notify. Defaults to never.")
-def backup(ctx, container: str, notify: str):
+@click.option('--healthchecks', flag_value=True, help="Perform healthcheks if configured.")
+def backup(ctx, container: str, notify: str, healthchecks: bool):
     """Backup a project's containers' data
 
     This will backup a project's containers' directories and databases as configured in the project config.
@@ -155,7 +156,7 @@ def backup(ctx, container: str, notify: str):
     log.info("--- Backing up {}".format(project_name))
 
     ret = perform_backup(config, project_name, select_containers(container, project_config, log),
-                         notifications.Mode(notify), log)
+                         notifications.Mode(notify), log, do_healthchecks=healthchecks)
 
     if ret:
         log.info("--- Backup finished.")

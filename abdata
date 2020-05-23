@@ -76,7 +76,8 @@ def update_cron(ctx):
 @click.option('--pool', help="Limit the check to just this pool.")
 @click.option('--notify', type=click.Choice(['auto', 'always', 'never']), default='never',
     help="Notification setting, auto: notify on failure, always: always notify, never: never notify. Defaults to never.")
-def check(ctx, driver: str, pool: str, notify: str):
+@click.option('--healthchecks', flag_value=True, help="Perform healthcheks if configured.")
+def check(ctx, driver: str, pool: str, notify: str, healthchecks: bool):
     """Perform a check the configured pools.
 
     This will check the health of the disk pools.
@@ -88,7 +89,7 @@ def check(ctx, driver: str, pool: str, notify: str):
 
     drivers = [config.drivers[driver]] if driver else config.drivers.values()
 
-    perform_check(config, drivers, notify, log, pool)
+    perform_check(config, drivers, notify, log, pool, do_healthchecks=healthchecks)
 
     log.info("--- Finished check")
     

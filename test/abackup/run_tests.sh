@@ -65,7 +65,7 @@ echo
 echo "################################################"
 echo "    backup"
 echo
-abackup --config backup.yml backup || die 'Backup failed!' $?
+abackup --config backup.yml backup --healthchecks || die 'Backup failed!' $?
 abackup --config backup.yml examine
 echo
 
