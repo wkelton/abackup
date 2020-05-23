@@ -149,7 +149,8 @@ def sync(ctx, delete: bool, max_delete: int, port: int, local_name: str, destina
     help="Name for the type of sycning, used for logging. Defaults to 'manual'.")
 @click.option('--notify', type=click.Choice(['auto', 'always', 'never']), default='never',
     help="Notification setting, auto: notify on failure, always: always notify, never: never notify. Defaults to never.")
-def auto(ctx, local_name: str, remote_name: str, sync_type: str, notify: str):
+@click.option('--healthchecks', flag_value=True, help="Perform healthcheks if configured.")
+def auto(ctx, local_name: str, remote_name: str, sync_type: str, notify: str, healthchecks: bool):
     """Run all the configured auto syncs.
 
     This will run the sync for all owned_data which has configred auto_sync settings.
@@ -160,7 +161,8 @@ def auto(ctx, local_name: str, remote_name: str, sync_type: str, notify: str):
 
     log.info("--- auto sync started")
 
-    ret = perform_auto_sync(config, absync_options, notify, log, local_name, remote_name, sync_type)
+    ret = perform_auto_sync(config, absync_options, notify, log, local_name, remote_name, sync_type,
+        do_healthchecks=healthchecks)
 
     if ret:
         log.info("--- auto sync finished.")

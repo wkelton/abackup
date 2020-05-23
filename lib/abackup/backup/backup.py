@@ -5,7 +5,7 @@ import os
 from inspect import currentframe, getframeinfo
 from typing import List, NamedTuple
 
-from abackup import notifications
+from abackup import healthchecks as hc, notifications
 from abackup.backup import Config
 from abackup.backup.project import Container
 
@@ -58,13 +58,18 @@ def rotate_backup(path: str, count: int):
 
 
 def perform_backup(config: Config, project_name: str, containers: List[Container],
-    notify_mode: notifications.Mode, log: logging.Logger):
+    notify_mode: notifications.Mode, log: logging.Logger, do_healthchecks: bool = True):
     success = True
     for container in containers:
         log.info(container.name)
         if not container.backup:
             log.info("skipping {}, no backup settings defined".format(container.name))
             continue
+
+        if do_healthchecks and container.backup.healthchecks:
+            hc.perform_healthcheck_start(config.default_healthcheck, container.backup.healthchecks, container.name,
+                config.notifier, notify_mode, log)
+
         successful_commands = [ ]
         failed_commands = [ ]
         backup_path = config.ensure_backup_path(project_name, container.name)
@@ -107,9 +112,16 @@ def perform_backup(config: Config, project_name: str, containers: List[Container
                     failed_commands.append(command.command_string)
                     break
 
-        notify_or_log(config.notifier, container.name, successful_commands, failed_commands,
-            notify_mode, log, getframeinfo(currentframe()))
+        backup_failed = len(failed_commands) > 0
 
-        success = success and len(failed_commands) == 0
+        notify_or_log(config.notifier, container.name, successful_commands, failed_commands, notify_mode, log,
+            getframeinfo(currentframe()))
+
+        if do_healthchecks and container.backup.healthchecks:
+            hc.perform_healthcheck(config.default_healthcheck, container.backup.healthchecks, container.name,
+                config.notifier, notify_mode, log, is_fail=backup_failed,
+                message="Failed commands: {}".format('\n'.join(failed_commands)) if failed_commands else None)
+
+        success = success and not backup_failed
 
     return success

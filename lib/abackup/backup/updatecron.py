@@ -15,10 +15,11 @@ def perform_update_cron(project_name: str, project_config: ProjectConfig, contai
         if not container.backup or not container.backup.auto_backups:
             log.info("skipping {}, no auto_backup settings defined".format(container.name))
             continue
+        healthchecks_option = '--healthchecks' if container.backup.healthchecks else ''
         for auto_backup in container.backup.auto_backups:
-            command = "abackup {} --project-config {} backup --container {} --notify {}".format(
+            command = "abackup {} --project-config {} backup --container {} --notify {} {}".format(
                 abackup_options, os.path.abspath(project_config.config_path), container.name,
-                auto_backup.notify.value)
+                auto_backup.notify.value, healthchecks_option)
             comment = "{}".format(container.name)
             log.debug("command: {}, comment: {}".format(command, comment))
             job = cron.job(command, comment, frequency=auto_backup.frequency if auto_backup.frequency else '0 0 * * *',

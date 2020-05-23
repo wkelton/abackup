@@ -3,7 +3,7 @@ import yaml
 
 from typing import Any, Dict, List
 
-from abackup import config, notifications
+from abackup import config, healthchecks as hc, notifications
 
 
 class SyncOptions:
@@ -25,11 +25,12 @@ class SyncOptions:
 
 class AutoSync:
     def __init__(self, remote_name: str, notify: str = None, frequency: str = None,
-                 options: Dict[str, Any] = None):
+                 options: Dict[str, Any] = None, healthchecks: Dict[str, str] = None):
         self.remote_name = remote_name
         self.frequency = frequency
         self.notify = notifications.Mode(notify) if notify else notifications.Mode.AUTO
         self.options = SyncOptions(**options) if options else None
+        self.healthchecks = hc.Healthcheck(**healthchecks) if healthchecks else None
 
 
 class DataDir:

@@ -3,7 +3,7 @@ import yaml
 
 from typing import Any, Dict, List
 
-from abackup import config, notifications
+from abackup import config, healthchecks as hc, notifications
 
 
 class AutoCheck:
@@ -13,10 +13,12 @@ class AutoCheck:
 
 
 class Pool:
-    def __init__(self, name: str, path: str, auto_check: List[Dict[str, str]] = None):
+    def __init__(self, name: str, path: str, auto_check: List[Dict[str, str]] = None,
+        healthchecks: Dict[str, str] = None):
         self.name = name
         self.path = path
         self.auto_check = [ AutoCheck(**check) for check in auto_check ] if auto_check else [ ]
+        self.healthchecks = hc.Healthcheck(**healthchecks) if healthchecks else None
 
 
 class Driver:
