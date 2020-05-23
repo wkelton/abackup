@@ -6,85 +6,100 @@ import re
 import subprocess
 
 from inspect import currentframe, getframeinfo
+from typing import Dict
 
 from abackup import fs, healthchecks as hc, notifications
 from abackup.sync import Config, DataDir, Remote, SyncOptions, syncinfo
 
 
-def get_stored_path_from_remote(stored_data_name: str, remote: Remote, absync_options: str, log: logging.Logger):
+def get_path_from_remote(command: str, data_name: str, remote: Remote, absync_options: str, log: logging.Logger):
     ssh_command_list = ['ssh'] + remote.ssh_options() + [remote.connection_string()]
-    sync_command = "bash --login -c 'absync {} stored-path {}'".format(absync_options, stored_data_name)
+    sync_command = "bash --login -c 'absync {} {} {}'".format(absync_options, command, data_name)
     command_list = ssh_command_list + [ sync_command ]
-    log.info("Running absync stored-path on remote...")
+    log.info("Running absync {} on remote...".format(command))
     log.debug(" ".join(command_list))
     run_out = subprocess.run(command_list, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
     if run_out.returncode == 0:
         path = run_out.stdout
-        log.info("Succeeded getting stored path from remote: {}".format(path))
+        log.info("Succeeded getting {} from remote: {}".format(command, path))
         return path
     else:
-        log.critical("Failed to get stored path from remote!")
+        log.critical("Failed to get {} from remote!".format(command))
         log.critical(run_out.stderr)
         log.debug(run_out.stdout)
         return False
 
 
-def handle_sync_results(notifier: notifications.SlackNotifier, local_name: str, remote_name: str,
+def get_owned_path_from_remote(owned_data_name: str, remote: Remote, absync_options: str, log: logging.Logger):
+    return get_path_from_remote('owned-path', owned_data_name, remote, absync_options, log)
+
+
+def get_stored_path_from_remote(stored_data_name: str, remote: Remote, absync_options: str, log: logging.Logger):
+    return get_path_from_remote('stored-path', stored_data_name, remote, absync_options, log)
+
+
+def handle_sync_results(notifier: notifications.SlackNotifier, data_name: str, remote_name: str, pull: bool,
     syncinfo: syncinfo.SyncInfo, notify_mode: notifications.Mode, log: logging.Logger):
-    log.debug("handle_sync_results({}, {}, {})".format(local_name, remote_name, notify_mode.name))
+    log.debug("handle_sync_results({}, {}, {}, {})".format(data_name, remote_name, notify_mode.name, pull))
     if not notifier:
-        log.debug("handle_sync_results({}, {}, {}): skipping notify (because no notifier was supplied)".format(
-            local_name, remote_name, notify_mode.name))
+        log.debug("handle_sync_results({}, {}, {}, {}): skipping notify (because no notifier was supplied)".format(
+            data_name, remote_name, notify_mode.name, pull))
     elif notify_mode == notifications.Mode.ALWAYS:
         severity = notifications.Severity.GOOD
         title = "Sync Successful"
-        fields = {"Local": local_name, "Remote": remote_name, "Sync Type": syncinfo.sync_type,
+        fields = {"Data": data_name, "Remote": remote_name, "Pull": pull, "Sync Type": syncinfo.sync_type,
                   "Duration": str(syncinfo.duration), "Sent": syncinfo.sync_count, "Deleted": syncinfo.sync_deleted,
-                  "Bytes": fs.to_human_readable(syncinfo.sync_bytes) }
+                  "Bytes": fs.to_human_readable(syncinfo.sync_bytes)}
         frameinfo = getframeinfo(currentframe())
         response = notifier.notify(title, severity, fields=fields, file_name=os.path.basename(frameinfo.filename),
                                    line_number=frameinfo.lineno, time=datetime.datetime.now().timestamp())
         if response.is_error():
             log.error("Error during notify: code: {} message: {}".format(response.code, response.message))
         else:
-            log.debug("handle_sync_results({}, {}, {}): notify successful: code: {} message: {}".format(local_name,
-                remote_name, notify_mode.name, response.code, response.message))
+            log.debug("handle_sync_results({}, {}, {}, {}): notify successful: code: {} message: {}".format(data_name,
+                remote_name, notify_mode.name, response.code, response.message, pull))
     else:
-        log.debug("handle_sync_results({}, {}, {}): skipping notify".format(local_name, remote_name, notify_mode.name))
+        log.debug("handle_sync_results({}, {}, {}, {}): skipping notify".format(data_name, remote_name,
+            notify_mode.name, pull))
 
 
-def handle_failed_sync(notifier: notifications.SlackNotifier, local_name: str, remote_name: str, error_message: str,
-    notify_mode: notifications.Mode, log: logging.Logger):
-    log.debug("handle_failed_sync({}, {}, {})".format(local_name, remote_name, notify_mode.name))
+def handle_failed_sync(notifier: notifications.SlackNotifier, data_name: str, remote_name: str, pull: bool,
+    error_message: str, notify_mode: notifications.Mode, log: logging.Logger):
+    log.debug("handle_failed_sync({}, {}, {}, {})".format(data_name, remote_name, notify_mode.name, pull))
     if not notifier:
-        log.debug("handle_failed_sync({}, {}, {}): skipping notify (because no notifier was supplied)".format(
-            local_name, remote_name, notify_mode.name))
+        log.debug("handle_failed_sync({}, {}, {}, {}): skipping notify (because no notifier was supplied)".format(
+            data_name, remote_name, notify_mode.name, pull))
     elif notify_mode != notifications.Mode.NEVER:
         severity = notifications.Severity.CRITICAL
         title = "Sync FAILED"
-        fields = { "Local": local_name, "Remote": remote_name, "Error": error_message }
+        fields = {"Data": data_name, "Remote": remote_name, "Pull": pull, "Error": error_message}
         frameinfo = getframeinfo(currentframe())
         response = notifier.notify(title, severity, fields=fields, file_name=os.path.basename(frameinfo.filename),
                                    line_number=frameinfo.lineno, time=datetime.datetime.now().timestamp())
         if response.is_error():
             log.error("Error during notify: code: {} message: {}".format(response.code, response.message))
         else:
-            log.debug("handle_failed_sync({}, {}, {}): notify successful: code: {} message: {}".format(local_name,
-                remote_name, notify_mode.name, response.code, response.message))
+            log.debug("handle_failed_sync({}, {}, {}, {}): notify successful: code: {} message: {}".format(data_name,
+                remote_name, notify_mode.name, pull, response.code, response.message))
     else:
-        log.debug("handle_failed_sync({}, {}, {}): skipping notify".format(local_name, remote_name, notify_mode.name))
+        log.debug("handle_failed_sync({}, {}, {}, {}): skipping notify".format(data_name, remote_name,
+            notify_mode.name, pull))
 
 
 def do_sync(origin: str, destination: str, sync_options: SyncOptions, log: logging.Logger, remote: Remote = None,
-    sync_type: str = 'manual'):
+    sync_type: str = 'manual', pull: bool = False):
     command_list = ['rsync', '-az', '--stats', '--info=del', '--info=name']
     if sync_options.delete:
         command_list.extend(['--delete', "--max-delete={}".format(sync_options.max_delete)])
     if remote:
         if remote.ssh_options():
             command_list.extend(['-e', "ssh {}".format(" ".join(remote.ssh_options()))])
-        command_list.append(origin)
-        command_list.append("{}:{}".format(remote.connection_string(), destination))
+        if pull:
+            command_list.append("{}:{}".format(remote.connection_string(), origin))
+            command_list.append(destination)
+        else:
+            command_list.append(origin)
+            command_list.append("{}:{}".format(remote.connection_string(), destination))
     else:
         command_list.append(origin)
         command_list.append(destination)
@@ -95,8 +110,9 @@ def do_sync(origin: str, destination: str, sync_options: SyncOptions, log: loggi
     duration = datetime.datetime.now() - timestamp
     if run_out.returncode == 0:
         log.info("rsync succeeded")
-        deleted_files = [ ]
-        transferred_files = [ ]
+        deleted_files = []
+        transferred_files = []
+        max_transferred_files = 1000
         sync_count = 0
         sync_deleted = 0
         sync_bytes = 0
@@ -112,7 +128,7 @@ def do_sync(origin: str, destination: str, sync_options: SyncOptions, log: loggi
             bytes_match = bytes_regex.search(line)
             if deleted_files_match:
                 deleted_files.append(deleted_files_match.group(1))
-            elif len(transferred_files) < 1000:
+            elif len(transferred_files) < max_transferred_files:
                 transferred_match = transferred_regex.match(line)
                 if transferred_match:
                     tf = transferred_match.group(1)
@@ -124,10 +140,10 @@ def do_sync(origin: str, destination: str, sync_options: SyncOptions, log: loggi
                 sync_deleted = locale.atoi(deleted_match.group(1))
             if bytes_match:
                 sync_bytes = locale.atoi(bytes_match.group(1))
-        if len(transferred_files) == 1000:
+        if len(transferred_files) == max_transferred_files:
             transferred_files.append('...')
-        info = syncinfo.SyncInfo(sync_type, timestamp, duration, destination, sync_count, sync_deleted, sync_bytes,
-            transferred_files, deleted_files, remote.host if remote else None)
+        info = syncinfo.SyncInfo(sync_type, timestamp, duration, origin, destination, sync_count, sync_deleted,
+            sync_bytes, transferred_files, deleted_files, remote.host if remote else None, pull)
         log.info(info)
         return info
     else:
@@ -137,99 +153,130 @@ def do_sync(origin: str, destination: str, sync_options: SyncOptions, log: loggi
         return False
 
 
-def do_auto_sync(config: Config, local_name: str, data_dir: DataDir, absync_options: str, notify: str,
-    log: logging.Logger, only_remote_name: str = None, sync_type: str = 'manual', do_healthchecks: bool = True):
+def do_auto_sync(config: Config, data_name: str, data_dir: DataDir, absync_options: str, notify: str,
+    log: logging.Logger, only_remote_name: str = None, sync_type: str = 'manual', pull: bool = False,
+    do_healthchecks: bool = True):
     sync_succeeded = True
-    path = data_dir.path
     syncinfos = []
     notify_mode = notifications.Mode(notify)
     for auto_sync in data_dir.auto_sync:
         remote_name = auto_sync.remote_name
+        remote = config.remotes[remote_name]
         if only_remote_name and remote_name != only_remote_name:
             continue
 
         if do_healthchecks and auto_sync.healthchecks:
-            hc.perform_healthcheck_start(config.default_healthcheck, auto_sync.healthchecks, auto_sync.remote_name,
+            hc.perform_healthcheck_start(config.default_healthcheck, auto_sync.healthchecks, remote_name,
                 config.notifier, notify_mode, log)
 
         error_message = None
-        remote = config.remotes[remote_name]
-        destination = get_stored_path_from_remote(local_name, remote, absync_options, log)
-        if destination == False:
-            error_message = "Failed to get stored path from {}!".format(auto_sync.remote_name)
-            handle_failed_sync(config.notifier, local_name, remote_name, error_message, notify_mode, log)
-            sync_succeeded = False
+        have_remote_path = True
+        if pull:
+            origin = get_owned_path_from_remote(data_name, remote, absync_options, log)
+            destination = data_dir.path
+            if origin == False:
+                error_message = "Failed to get owned path from {}!".format(auto_sync.remote_name)
+                handle_failed_sync(config.notifier, data_name, remote_name, pull, error_message, notify_mode, log)
+                have_remote_path = False
         else:
-            log.info("syncing {} with {}:{}".format(path, remote_name, destination))
-            ret = do_sync(path, destination, data_dir.options.mask(auto_sync.options), log, remote, sync_type)
+            origin = data_dir.path
+            destination = get_stored_path_from_remote(data_name, remote, absync_options, log)
+            if destination == False:
+                error_message = "Failed to get stored path from {}!".format(auto_sync.remote_name)
+                handle_failed_sync(config.notifier, data_name, remote_name, pull, error_message, notify_mode, log)
+                have_remote_path = False
+
+        if have_remote_path:
+            log.info("syncing {} with {}".format("{}:{}".format(remote_name, origin) if pull else origin, 
+                                                 "{}:{}".format(remote_name, destination) if not pull else destination))
+            ret = do_sync(origin, destination, data_dir.options.mask(auto_sync.options), log, remote, sync_type, pull)
             if ret == False:
-                error_message = "Failed syncing to {}!".format(auto_sync.remote_name)
-                handle_failed_sync(config.notifier, local_name, remote_name, error_message, notify_mode, log)
+                error_message = "Failed syncing with {}!".format(auto_sync.remote_name)
+                handle_failed_sync(config.notifier, data_name, remote_name, pull, error_message, notify_mode, log)
                 sync_succeeded = False
             else:
-                handle_sync_results(config.notifier, local_name, remote_name, ret, notify_mode, log)
+                handle_sync_results(config.notifier, data_name, remote_name, pull, ret, notify_mode, log)
                 syncinfos.append(ret)
 
+        sync_succeeded = sync_succeeded and have_remote_path
+
         if do_healthchecks and auto_sync.healthchecks:
-            hc.perform_healthcheck(config.default_healthcheck, auto_sync.healthchecks, auto_sync.remote_name,
+            hc.perform_healthcheck(config.default_healthcheck, auto_sync.healthchecks, remote_name,
                 config.notifier, notify_mode, log, is_fail=not sync_succeeded, message=error_message)
 
     if len(syncinfos) > 0:
-        syncinfo.write_sync_infos(syncinfos, config, local_name)
+        syncinfo.write_sync_infos(syncinfos, config, data_name)
     return sync_succeeded
 
 
-def perform_sync(config: Config, local_name: str, destination: str, log: logging.Logger, delete: bool = None,
+def perform_sync(config: Config, data_name: str, org_dest: str, pull: bool, log: logging.Logger, delete: bool = None,
     max_delete: int = None, port: int = None):
-    if not local_name in config.owned_data:
-        log.critical("{} data directory not present in config!".format(local_name))
+    if pull:
+        data = config.stored_data
+    else:
+        data = config.owned_data
+    if not data_name in data:
+        log.critical("{} data directory not present in config!".format(data_name))
         return False
+    log.info("\tonly for {}".format(data_name))
 
-    log.info("\tonly for {}".format(local_name))
+    def _parse_remote(remote_string: str, remotes: Dict[str, Remote], log: logging.Logger):
+        remote = None
+        remote_path = remote_string
+        remote_regex = re.compile(r"^([a-zA-Z0-9.]+):(.*)")
+        remote_match = remote_regex.match(remote_string)
+        if remote_match:
+            remote_name = remote_match.group(1)
+            remote_path = remote_match.group(2)
+            if remote_name in remotes:
+                remote = remotes[remote_name]
+                log.info("found remote in config: {} -> {}".format(remote_name, remote.host))
+            else:
+                remote = Remote(remote_name)
+        return (remote, remote_path)
 
-    path = config.owned_data[local_name].path
-    remote = None
-    remote_regex = re.compile(r"^([a-zA-Z0-9.]+):(.*)")
-    remote_match = remote_regex.match(destination)
-    if remote_match:
-        remote_name = remote_match.group(1)
-        destination = remote_match.group(2)
-        if remote_name in config.remotes:
-            remote = config.remotes[remote_name]
-            log.info("found remote in config: {} -> {}".format(remote_name, remote.host))
-        else:
-            remote = Remote(remote_name)
+    data_dir = data[data_name]
+    if pull:
+        remote, origin = _parse_remote(org_dest, config.remotes, log)
+        destination = data_dir.path
+    else:
+        origin = data_dir.path
+        remote, destination = _parse_remote(org_dest, config.remotes, log)
+
+    if remote:
         if port:
             remote.port = port
-        log.info("syncing {} with {}:{}".format(path, remote.host, destination))
+        log.info("syncing {} with {}".format("{}:{}".format(remote.host, origin) if pull else origin,
+                                             "{}:{}".format(remote.host, destination) if not pull else destination))
         log.debug(remote)
     else:
-        log.info("syncing {} with {}".format(path, destination))
+        log.info("syncing {} with {}".format(origin, destination))
 
-    ret = do_sync(path, destination, config.owned_data[local_name].options.mask(SyncOptions(delete, max_delete)), log)
+    ret = do_sync(origin, destination, data_dir.options.mask(SyncOptions(delete, max_delete)), log, remote, pull=pull)
 
     if ret == False:
         return False
     else:
-        syncinfo.write_sync_infos([ret], config, local_name)
+        syncinfo.write_sync_infos([ret], config, data_name)
         return True
 
 
 def perform_auto_sync(config: Config, absync_options: str, notify: str, log: logging.Logger,
-    only_local_name: str = None, only_remote_name: str = None, sync_type: str = 'manual', do_healthchecks: bool = True):
-    if only_local_name:
-        if not only_local_name in config.owned_data:
-            log.critical("{} data directory not present in config!".format(only_local_name))
+    only_data_name: str = None, only_remote_name: str = None, sync_type: str = 'manual', do_healthchecks: bool = True):
+    if only_data_name:
+        if only_data_name not in config.owned_data or only_data_name not in config.stored_data:
+            log.critical("{} data directory not present in config!".format(only_data_name))
             return False
-        log.info("\tonly for {}".format(only_local_name))
-        if not do_auto_sync(config, only_local_name, config.owned_data[only_local_name], absync_options, notify, log,
-            only_remote_name, sync_type, do_healthchecks):
-            return False
-        else:
-            return True
-    else:
-        sync_succeeded = True
-        for name, data_dir in config.owned_data.items():
-            sync_succeeded = sync_succeeded and do_auto_sync(config, name, data_dir, absync_options, notify, log,
-                only_remote_name, sync_type, do_healthchecks)
-        return sync_succeeded
+        log.info("\tonly for {}".format(only_data_name))
+    sync_succeeded = True
+    for name, data_dir in config.owned_data.items():
+        if only_data_name and name != only_data_name:
+            continue
+        sync_succeeded = do_auto_sync(config, name, data_dir, absync_options, notify, log, only_remote_name, sync_type,
+            pull=False, do_healthchecks=do_healthchecks) and sync_succeeded
+    for name, data_dir in config.stored_data.items():
+        if only_data_name and name != only_data_name:
+            continue
+        sync_succeeded = do_auto_sync(config, name, data_dir, absync_options, notify, log, only_remote_name, sync_type,
+            pull=True, do_healthchecks=do_healthchecks) and sync_succeeded
+    return sync_succeeded

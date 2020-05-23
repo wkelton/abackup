@@ -8,14 +8,16 @@ from abackup.sync import Config
 
 
 class SyncInfo:
-    def __init__(self, sync_type: str, timestamp: datetime.datetime, duration: datetime.timedelta, destination: str,
-        sync_count: int, sync_deleted: int, sync_bytes: int, transferred_files: List[str], deleted_files: List[str],
-        remote_host: str = None):
+    def __init__(self, sync_type: str, timestamp: datetime.datetime, duration: datetime.timedelta, origin: str,
+        destination: str, sync_count: int, sync_deleted: int, sync_bytes: int, transferred_files: List[str],
+        deleted_files: List[str], remote_host: str = None, pull: bool = False):
         self.sync_type = sync_type
         self.timestamp = timestamp
+        self.origin = origin
         self.duration = duration
         self.destination = destination
         self.remote_host = remote_host
+        self.pull = pull
         self.sync_count = sync_count
         self.sync_deleted = sync_deleted
         self.sync_bytes = sync_bytes
@@ -23,37 +25,44 @@ class SyncInfo:
         self.deleted_files = deleted_files
 
     def __str__(self):
-        return "Sync: {} at {} for {} to {} --- transfered {} files with {} bytes".format(self.sync_type,
-            self.timestamp, self.duration, 
-            "{}:{}".format(self.remote_host, self.destination) if self.remote_host else self.destination,
+        return "Sync: {} at {} for {} from {} to {} --- transfered {} files with {} bytes".format(self.sync_type,
+            self.timestamp, self.duration,
+            "{}:{}".format(self.remote_host, self.origin) if self.remote_host and self.pull else self.origin,
+            "{}:{}".format(self.remote_host, self.destination) if self.remote_host and not self.pull else self.destination,
             self.sync_count, self.sync_bytes)
 
 
 def jsonify_sync_info(sync_info: SyncInfo):
     return {'sync_type': sync_info.sync_type,
-             'destination': sync_info.destination,
-             'sync_count': sync_info.sync_count,
-             'sync_deleted': sync_info.sync_deleted,
-             'sync_bytes': sync_info.sync_bytes,
-             'transferred_files': sync_info.transferred_files,
-             'deleted_files': sync_info.deleted_files,
-             'remote_host': sync_info.remote_host,
-             'timestamp': sync_info.timestamp.replace(microsecond=0).isoformat(),
-             'duration': sync_info.duration.total_seconds()
+            'timestamp': sync_info.timestamp.replace(microsecond=0).isoformat(),
+            'duration': sync_info.duration.total_seconds(),
+            'origin': sync_info.origin,
+            'destination': sync_info.destination,
+            'sync_count': sync_info.sync_count,
+            'sync_deleted': sync_info.sync_deleted,
+            'sync_bytes': sync_info.sync_bytes,
+            'transferred_files': sync_info.transferred_files,
+            'deleted_files': sync_info.deleted_files,
+            'remote_host': sync_info.remote_host,
+            'pull': sync_info.pull
             }
 
 
 def unjsonify_sync_info(json_dict: Dict[str, Any]):
-    return SyncInfo(json_dict['sync_type'],
-                     datetime.datetime.strptime(json_dict['timestamp'], '%Y-%m-%dT%H:%M:%S'),
-                     datetime.timedelta(seconds=json_dict['duration']),
-                     json_dict['destination'],
-                     json_dict['sync_count'],
-                     json_dict['sync_deleted'],
-                     json_dict['sync_bytes'],
-                     json_dict['transferred_files'],
-                     json_dict['deleted_files'],
-                     json_dict['remote_host']
+    def _get_field(key: str, default=None):
+        return json_dict[key] if key in json_dict else default
+    return SyncInfo(_get_field('sync_type'),
+                    datetime.datetime.strptime(_get_field('timestamp', ''), '%Y-%m-%dT%H:%M:%S'),
+                    datetime.timedelta(seconds=_get_field('duration', 0)),
+                    _get_field('origin'),
+                    _get_field('destination'),
+                    _get_field('sync_count'),
+                    _get_field('sync_deleted'),
+                    _get_field('sync_bytes'),
+                    _get_field('transferred_files'),
+                    _get_field('deleted_files'),
+                    _get_field('remote_host'),
+                    _get_field('pull')
                     )
 
 
@@ -66,8 +75,8 @@ def deserialize_sync_infos(json_string: str):
 
 
 class SyncInfosSerializer:
-    def __init__(self, config: Config, local_name: str):
-        self.json_file_path = os.path.join(config.log_root, "{}-latest.json".format(local_name))
+    def __init__(self, config: Config, data_name: str):
+        self.json_file_path = os.path.join(config.log_root, "{}-latest.json".format(data_name))
 
     def serialize(self, sync_infos: List[SyncInfo]):
         try:
@@ -97,12 +106,12 @@ class SyncInfosSerializer:
             return False
 
 
-def write_sync_infos(sync_infos: List[SyncInfo], config: Config, local_name: str):
-    serializer = SyncInfosSerializer(config, local_name)
+def write_sync_infos(sync_infos: List[SyncInfo], config: Config, data_name: str):
+    serializer = SyncInfosSerializer(config, data_name)
     return serializer.serialize(sync_infos)
 
 
-def read_sync_infos(config: Config, local_name: str):
-    serializer = SyncInfosSerializer(config, local_name)
+def read_sync_infos(config: Config, data_name: str):
+    serializer = SyncInfosSerializer(config, data_name)
     sync_infos = serializer.deserialize()
     return sync_infos if sync_infos else []
