@@ -264,7 +264,7 @@ def perform_sync(config: Config, data_name: str, org_dest: str, pull: bool, log:
 def perform_auto_sync(config: Config, absync_options: str, notify: str, log: logging.Logger,
     only_data_name: str = None, only_remote_name: str = None, sync_type: str = 'manual', do_healthchecks: bool = True):
     if only_data_name:
-        if only_data_name not in config.owned_data or only_data_name not in config.stored_data:
+        if only_data_name not in config.owned_data and only_data_name not in config.stored_data:
             log.critical("{} data directory not present in config!".format(only_data_name))
             return False
         log.info("\tonly for {}".format(only_data_name))
