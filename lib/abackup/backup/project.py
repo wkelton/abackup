@@ -61,7 +61,7 @@ class BackupSettings:
     def __str__(self):
         return "pre:{} post:{} versions:{} auto_backups:{} options:{} hc:{}".format(
             len(self.pre_commands), len(self.post_commands), self.version_count, len(self.auto_backups),
-            len(self.docker_options), self.healthchecks.base_url if self.healthchecks else 'None')
+            len(self.docker_options), self.healthchecks.uuid if self.healthchecks else 'None')
 
 ##
 # Mysql
