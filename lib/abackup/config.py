@@ -39,7 +39,7 @@ class BaseConfig:
             if 'healthchecks' in self._raw:
                 if 'default' in self._raw['healthchecks']:
                     self.default_healthcheck = hc.Healthcheck(**{
-                        **{'base_url': self.default_healthcheck.url,
+                        **{'base_url': self.default_healthcheck.base_url,
                            'do_include_messages': self.default_healthcheck.do_include_messages,
                            'do_notify_start': self.default_healthcheck.do_notify_start},
                         **self._raw['healthchecks']['default']
