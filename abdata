@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
-import click
-import logging
 import os
 import subprocess
+
+import click
 
 from abackup import appcron
 from abackup.data import Config
@@ -15,8 +15,9 @@ from abackup.data.updatecron import perform_update_cron
 @click.pass_context
 @click.option('--no-log', flag_value=True, help="Disable logging")
 @click.option('--debug', flag_value=True, help="Enable debug-level of logging")
-@click.option('--config', type=click.Path(exists=True), default=os.path.join(os.path.expanduser('~'), '.abackup/data.yml'),
-    help="Path to global configuration file, defaults to ~/.abackup/data.yml")
+@click.option('--config', type=click.Path(exists=True),
+              default=os.path.join(os.path.expanduser('~'), '.abackup/data.yml'),
+              help="Path to global configuration file, defaults to ~/.abackup/data.yml")
 @click.option('--user', help='User to run cron commands for')
 def cli(ctx, no_log: bool, debug: bool, config: str, user: str):
     """abdata - a script for monitoring disk health
@@ -24,31 +25,31 @@ def cli(ctx, no_log: bool, debug: bool, config: str, user: str):
     config_path = config
     config = Config(config_path, no_log, debug)
     cron = appcron.AppCronTab('abdata', user, config.log)
-    abdata_options = [ ]
+    abdata_options = []
     if debug:
         abdata_options.append('--debug')
     if no_log:
         abdata_options.append('--no-log')
     if config_path != os.path.join(os.path.expanduser('~'), '.abackup/data.yml'):
-        abdata_options.extend([ '--config', config_path ])
+        abdata_options.extend(['--config', config_path])
     if user:
-        abdata_options.extend([ '--user', user ])
-    ctx.obj = { 'config': config,
-                'cron': cron,
-                'log': config.log,
-                'abdata_options': " ".join(abdata_options) }
+        abdata_options.extend(['--user', user])
+    ctx.obj = {'config': config,
+               'cron': cron,
+               'log': config.log,
+               'abdata_options': " ".join(abdata_options)}
 
 
-@cli.command()
+@cli.command('log')
 @click.pass_context
-def log(ctx):
+def log_command(ctx):
     """Display the log on the terminal"""
-    subprocess.run([ 'less', '+G', ctx.obj['config'].log_path ])
+    subprocess.run(['less', '+G', ctx.obj['config'].log_path])
 
 
 @cli.command('update-cron')
 @click.pass_context
-def update_cron(ctx):
+def update_cron_command(ctx):
     """Update crontab with config settings
 
     This will add or update the crontab entry for the pools to monitor.
@@ -69,15 +70,16 @@ def update_cron(ctx):
         exit(1)
 
 
-@cli.command()
+@cli.command('check')
 @click.pass_context
 @click.option('--driver', type=click.Choice(['mdadm', 'zfs']), help="Only perform the "
-    "check on the specified driver.")
+                                                                    "check on the specified driver.")
 @click.option('--pool', help="Limit the check to just this pool.")
 @click.option('--notify', type=click.Choice(['auto', 'always', 'never']), default='never',
-    help="Notification setting, auto: notify on failure, always: always notify, never: never notify. Defaults to never.")
-@click.option('--healthchecks', flag_value=True, help="Perform healthcheks if configured.")
-def check(ctx, driver: str, pool: str, notify: str, healthchecks: bool):
+              help="Notification setting, auto: notify on failure, always: always notify, never: never notify. "
+                   "Defaults to never.")
+@click.option('--healthchecks', flag_value=True, help="Perform healthchecks if configured.")
+def check_command(ctx, driver: str, pool: str, notify: str, healthchecks: bool):
     """Perform a check the configured pools.
 
     This will check the health of the disk pools.
@@ -92,7 +94,7 @@ def check(ctx, driver: str, pool: str, notify: str, healthchecks: bool):
     perform_check(config, drivers, notify, log, pool, do_healthchecks=healthchecks)
 
     log.info("--- Finished check")
-    
+
 
 if __name__ == "__main__":
     cli()

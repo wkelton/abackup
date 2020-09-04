@@ -15,8 +15,8 @@ class SyncOptions:
         if not options:
             return SyncOptions(self.delete, self.max_delete)
         else:
-            return SyncOptions(options.delete if options.delete else self.delete, 
-                options.max_delete if options.max_delete else self.max_delete)
+            return SyncOptions(options.delete if options.delete else self.delete,
+                               options.max_delete if options.max_delete else self.max_delete)
 
     @staticmethod
     def default():
@@ -37,7 +37,7 @@ class DataDir:
     def __init__(self, path: str, group: str = None, permissions: str = None,
                  auto_sync: List[Dict[str, Any]] = None, options: Dict[str, Any] = None):
         self.path = path
-        self.auto_sync = [ AutoSync(**s) for s in auto_sync ] if auto_sync else [ ]
+        self.auto_sync = [AutoSync(**s) for s in auto_sync] if auto_sync else []
         self.options = SyncOptions(**options) if options else SyncOptions.default()
 
 
@@ -53,11 +53,11 @@ class Remote:
                                       " ".join(self.ssh_options()))
 
     def ssh_options(self):
-        options = [ ]
+        options = []
         if self.port:
-            options.extend([ '-p', str(self.port) ])
+            options.extend(['-p', str(self.port)])
         if self.ssh_key:
-            options.extend([ '-i', self.ssh_key ])
+            options.extend(['-i', self.ssh_key])
         return options
 
     def connection_string(self):
@@ -78,8 +78,8 @@ class Config(config.BaseConfig):
             if 'log_root' in self._raw:
                 self.log_root = self._raw['log_root']
             if 'owned_data' in self._raw:
-                self.owned_data = { name: DataDir(**value) for name, value in self._raw['owned_data'].items() }
+                self.owned_data = {name: DataDir(**value) for name, value in self._raw['owned_data'].items()}
             if 'stored_data' in self._raw:
-                self.stored_data = { name: DataDir(**value) for name, value in self._raw['stored_data'].items() }
+                self.stored_data = {name: DataDir(**value) for name, value in self._raw['stored_data'].items()}
             if 'remotes' in self._raw:
-                self.remotes = { name: Remote(**value) for name, value in self._raw['remotes'].items() }
+                self.remotes = {name: Remote(**value) for name, value in self._raw['remotes'].items()}

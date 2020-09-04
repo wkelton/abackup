@@ -9,8 +9,8 @@ from abackup.sync import Config
 
 class SyncInfo:
     def __init__(self, sync_type: str, timestamp: datetime.datetime, duration: datetime.timedelta, origin: str,
-        destination: str, sync_count: int, sync_deleted: int, sync_bytes: int, transferred_files: List[str],
-        deleted_files: List[str], remote_host: str = None, pull: bool = False):
+                 destination: str, sync_count: int, sync_deleted: int, sync_bytes: int, transferred_files: List[str],
+                 deleted_files: List[str], remote_host: str = None, pull: bool = False):
         self.sync_type = sync_type
         self.timestamp = timestamp
         self.origin = origin
@@ -25,10 +25,11 @@ class SyncInfo:
         self.deleted_files = deleted_files
 
     def __str__(self):
-        return "Sync: {} at {} for {} from {} to {} --- transfered {} files with {} bytes".format(self.sync_type,
-            self.timestamp, self.duration,
+        return "Sync: {} at {} for {} from {} to {} --- transferred {} files with {} bytes".format(
+            self.sync_type, self.timestamp, self.duration,
             "{}:{}".format(self.remote_host, self.origin) if self.remote_host and self.pull else self.origin,
-            "{}:{}".format(self.remote_host, self.destination) if self.remote_host and not self.pull else self.destination,
+            "{}:{}".format(self.remote_host,
+                           self.destination) if self.remote_host and not self.pull else self.destination,
             self.sync_count, self.sync_bytes)
 
 
@@ -51,6 +52,7 @@ def jsonify_sync_info(sync_info: SyncInfo):
 def unjsonify_sync_info(json_dict: Dict[str, Any]):
     def _get_field(key: str, default=None):
         return json_dict[key] if key in json_dict else default
+
     return SyncInfo(_get_field('sync_type'),
                     datetime.datetime.strptime(_get_field('timestamp', ''), '%Y-%m-%dT%H:%M:%S'),
                     datetime.timedelta(seconds=_get_field('duration', 0)),

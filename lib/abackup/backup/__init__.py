@@ -35,7 +35,8 @@ class Config(config.BaseConfig):
             os.makedirs(path)
         if self.group_owner:
             os.chown(os.path.join(self.backup_root, project_name), -1, grp.getgrnam(self.group_owner).gr_gid)
-            os.chown(os.path.join(self.backup_root, project_name, container_name), -1, grp.getgrnam(self.group_owner).gr_gid)
+            os.chown(os.path.join(self.backup_root, project_name, container_name), -1,
+                     grp.getgrnam(self.group_owner).gr_gid)
         if self.directory_permissions:
             os.chmod(os.path.join(self.backup_root, project_name), self.directory_permissions)
             os.chmod(os.path.join(self.backup_root, project_name, container_name), self.directory_permissions)
