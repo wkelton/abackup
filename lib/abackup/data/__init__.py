@@ -14,17 +14,17 @@ class AutoCheck:
 
 class Pool:
     def __init__(self, name: str, path: str, auto_check: List[Dict[str, str]] = None,
-        healthchecks: Dict[str, str] = None):
+                 healthchecks: Dict[str, str] = None):
         self.name = name
         self.path = path
-        self.auto_check = [ AutoCheck(**check) for check in auto_check ] if auto_check else [ ]
+        self.auto_check = [AutoCheck(**check) for check in auto_check] if auto_check else []
         self.healthchecks = hc.Healthcheck(**healthchecks) if healthchecks else None
 
 
 class Driver:
     def __init__(self, name: str, pools: List[Dict[str, Any]]):
         self.name = name
-        self.pools = [ Pool(**pool) for pool in pools ]
+        self.pools = [Pool(**pool) for pool in pools]
 
 
 class Config(config.BaseConfig):
@@ -35,4 +35,4 @@ class Config(config.BaseConfig):
             with open(path, 'r') as stream:
                 self._raw = yaml.safe_load(stream)
             if 'drivers' in self._raw:
-                self.drivers = { name: Driver(name, **value) for name, value in self._raw['drivers'].items() }
+                self.drivers = {name: Driver(name, **value) for name, value in self._raw['drivers'].items()}

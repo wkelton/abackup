@@ -1,8 +1,7 @@
-import logging
-import requests
-
 from enum import Enum
 from typing import Any, Dict, List
+
+import requests
 
 
 class Mode(Enum):
@@ -27,7 +26,7 @@ class SlackField:
         self.short = short
 
     def to_data(self):
-        return { "title": self.title, "value": self.value, "short": self.short }
+        return {"title": self.title, "value": self.value, "short": self.short}
 
 
 class SlackAttachment:
@@ -51,11 +50,11 @@ class SlackAttachment:
         self.ts = ts
 
     def to_data(self):
-        data = { "mrkdwn_in": [ "text", "pretext", "fields" ] }
+        data = {"mrkdwn_in": ["text", "pretext", "fields"]}
         for k, v in self.__dict__.items():
             if v:
                 if k == "fields":
-                    data[k] = [ field.to_data() for field in v ]
+                    data[k] = [field.to_data() for field in v]
                 else:
                     data[k] = v
         return data
@@ -70,11 +69,11 @@ class SlackData:
         self.channel = channel
 
     def to_data(self):
-        data = { }
+        data = {}
         for k, v in self.__dict__.items():
             if v:
                 if k == "attachments":
-                    data[k] = [ attachment.to_data() for attachment in v ]
+                    data[k] = [attachment.to_data() for attachment in v]
                 else:
                     data[k] = v
         return data
@@ -86,12 +85,14 @@ class Severity(Enum):
     GOOD = "good"
 
 
-def build_slack_data(title: str, severity: Severity, description: str = None, fields: Dict[str, Any] = {},
-    file_name: str = None, line_number: int = None, time: str = None):
+def build_slack_data(title: str, severity: Severity, description: str = None, fields: Dict[str, Any] = None,
+                     file_name: str = None, line_number: int = None, time: float = None):
+    if fields is None:
+        fields = {}
     attachment = SlackAttachment(title=title, color="good" if severity == Severity.GOOD else "danger",
-                                 text=description, footer="{}:{}".format(file_name, line_number), ts=time, 
-                                 fields=[ SlackField(k, v) for k, v in fields.items() ], fallback=title)
-    return SlackData(attachments=[ attachment ])
+                                 text=description, footer="{}:{}".format(file_name, line_number), ts=time,
+                                 fields=[SlackField(k, v) for k, v in fields.items()], fallback=title)
+    return SlackData(attachments=[attachment])
 
 
 class SlackNotifier:
@@ -106,7 +107,8 @@ class SlackNotifier:
         response = requests.post(self.api_url, json=data.to_data())
         return SlackResponse(response.status_code, response.text)
 
-    def notify(self, title: str, severity: Severity, description: str = None, fields: Dict[str, Any] = {},
-        file_name: str = None, line_number: str = None, time: str = None):
-        return self.notify_raw(build_slack_data(title, severity, description, fields, file_name, line_number,
-            time))
+    def notify(self, title: str, severity: Severity, description: str = None, fields: Dict[str, Any] = None,
+               file_name: str = None, line_number: int = None, time: float = None):
+        if not fields:
+            fields = {}
+        return self.notify_raw(build_slack_data(title, severity, description, fields, file_name, line_number, time))

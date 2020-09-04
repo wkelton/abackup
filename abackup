@@ -1,20 +1,17 @@
 #!/usr/bin/env python3
 
-import datetime
-import grp
 import logging
 import os
 import subprocess
-import sys
 import time
 
 import click
 from tabulate import tabulate
 
-from abackup import appcron, config, fs, notifications
+from abackup import appcron, fs, notifications
 from abackup.backup import Config
 from abackup.backup.backup import perform_backup
-from abackup.backup.project import (Container, ProjectConfig,
+from abackup.backup.project import (ProjectConfig,
                                     get_all_backup_files_for_container)
 from abackup.backup.restore import perform_restore
 from abackup.backup.updatecron import perform_update_cron
@@ -24,7 +21,7 @@ def select_containers(container_option: str, project_config: ProjectConfig, log:
     if container_option:
         container = project_config.container(container_option)
         log.info("\tonly for container " + container.name)
-        containers = [ container ]
+        containers = [container]
     else:
         containers = project_config.containers
     log.info("{} containers".format(len(containers)))
@@ -35,10 +32,11 @@ def select_containers(container_option: str, project_config: ProjectConfig, log:
 @click.pass_context
 @click.option('--no-log', flag_value=True, help="Disable logging")
 @click.option('--debug', flag_value=True, help="Enable debug-level of logging")
-@click.option('--config', type=click.Path(exists=True), default=os.path.join(os.path.expanduser('~'), '.abackup/backup.yml'),
-    help="Path to global configuration file, defaults to ~/.abackup/backup.yml")
+@click.option('--config', type=click.Path(exists=True),
+              default=os.path.join(os.path.expanduser('~'), '.abackup/backup.yml'),
+              help="Path to global configuration file, defaults to ~/.abackup/backup.yml")
 @click.option('--project-config', type=click.Path(exists=True), default='.abackup.yml',
-    help="Path to project configuration file, defaults to ./.abackup.yml")
+              help="Path to project configuration file, defaults to ./.abackup.yml")
 @click.option('--user', help='User to run cron commands for')
 def cli(ctx, no_log: bool, debug: bool, config: str, project_config: str, user: str):
     """abackup - a script for managing backups of docker containers' data
@@ -49,34 +47,34 @@ def cli(ctx, no_log: bool, debug: bool, config: str, project_config: str, user: 
     config = Config(config_path, no_log, debug, project_name)
     project_config = ProjectConfig(project_config)
     cron = appcron.AppCronTab('abackup', user, config.log)
-    abackup_options = [ ]
+    abackup_options = []
     if debug:
         abackup_options.append('--debug')
     if no_log:
         abackup_options.append('--no-log')
     if config_path != os.path.join(os.path.expanduser('~'), '.abackup/backup.yml'):
-        abackup_options.extend([ '--config', config_path ])
+        abackup_options.extend(['--config', config_path])
     if user:
-        abackup_options.extend([ '--user', user ])
-    ctx.obj = { 'config': config,
-                'project_name': project_name,
-                'project_config': project_config,
-                'cron': cron,
-                'log': config.log,
-                'abackup_options': " ".join(abackup_options) }
+        abackup_options.extend(['--user', user])
+    ctx.obj = {'config': config,
+               'project_name': project_name,
+               'project_config': project_config,
+               'cron': cron,
+               'log': config.log,
+               'abackup_options': " ".join(abackup_options)}
 
 
-@cli.command()
+@cli.command('log')
 @click.pass_context
-def log(ctx):
+def log_command(ctx):
     """Display the log on the terminal"""
     subprocess.run(['less', '+G', ctx.obj['config'].log_path])
 
 
-@cli.command()
+@cli.command('examine')
 @click.pass_context
 @click.option('--container', help="Container to examine. If not specified, all containers for the project are used")
-def examine(ctx, container: str):
+def examine_command(ctx, container: str):
     """Display backup information for a project's containers
 
     This will print to the terminal: project config, project's crontab, containers' backed up data
@@ -100,8 +98,9 @@ def examine(ctx, container: str):
     def print_container_backups(c):
         print("Backup files for {}:".format(c.name))
         rows = [[backup, fs.to_human_readable(os.path.getsize(backup)), time.ctime(os.path.getmtime(backup))]
-            for backup in get_all_backup_files_for_container(config.get_backup_path(project_name, c.name), c)]
-        print(tabulate(rows, headers=['File', 'Size' ,'Time']))
+                for backup in get_all_backup_files_for_container(config.get_backup_path(project_name, c.name), c)]
+        print(tabulate(rows, headers=['File', 'Size', 'Time']))
+
     if container:
         print_container_backups(project_config.container(container))
     else:
@@ -114,7 +113,7 @@ def examine(ctx, container: str):
 @cli.command('update-cron')
 @click.pass_context
 @click.option('--container', help="Container to use. If not specified, all containers for the project are used")
-def update_cron(ctx, container: str):
+def update_cron_command(ctx, container: str):
     """Update crontab with project settings
 
     This will add or update the crontab entry for the containers of the project to perform backups.
@@ -137,13 +136,14 @@ def update_cron(ctx, container: str):
         exit(1)
 
 
-@cli.command()
+@cli.command('backup')
 @click.pass_context
 @click.option('--container', help="Container to use. If not specified, all containers for the project are used.")
-@click.option('--notify', type=click.Choice([ 'auto', 'always', 'never' ]), default='never',
-    help="Notification setting, auto: notify on failure, always: always notify, never: never notify. Defaults to never.")
+@click.option('--notify', type=click.Choice(['auto', 'always', 'never']), default='never',
+              help="Notification setting, auto: notify on failure, always: always notify, never: never notify. "
+                   "Defaults to never.")
 @click.option('--healthchecks', flag_value=True, help="Perform healthcheks if configured.")
-def backup(ctx, container: str, notify: str, healthchecks: bool):
+def backup_command(ctx, container: str, notify: str, healthchecks: bool):
     """Backup a project's containers' data
 
     This will backup a project's containers' directories and databases as configured in the project config.
@@ -165,10 +165,10 @@ def backup(ctx, container: str, notify: str, healthchecks: bool):
         exit(1)
 
 
-@cli.command()
+@cli.command('restore')
 @click.pass_context
 @click.option('--container', help="Container to use. If not specified, all containers for the project are used")
-def restore(ctx, container):
+def restore_command(ctx, container):
     """Restore a project's containers' data
 
     This will restore a project's containers' directories and databases as configured in the project config.
@@ -181,7 +181,7 @@ def restore(ctx, container):
     log.info("--- Restoring {}".format(project_name))
 
     ret = perform_restore(config, project_name, select_containers(container, project_config, log), log)
-    
+
     if ret:
         log.info("--- Restore finished.")
     else:

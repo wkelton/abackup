@@ -8,7 +8,7 @@ from abackup.backup.project import Container, ProjectConfig
 
 
 def perform_update_cron(project_name: str, project_config: ProjectConfig, containers: List[Container],
-    abackup_options: str, cron: AppCronTab, log: logging.Logger):
+                        abackup_options: str, cron: AppCronTab, log: logging.Logger):
     do_write_cron = True
     for container in containers:
         log.info(container.name)
@@ -23,7 +23,7 @@ def perform_update_cron(project_name: str, project_config: ProjectConfig, contai
             comment = "{}".format(container.name)
             log.debug("command: {}, comment: {}".format(command, comment))
             job = cron.job(command, comment, frequency=auto_backup.frequency if auto_backup.frequency else '0 0 * * *',
-                project=project_name)
+                           project=project_name)
             if not job.is_valid():
                 log.error("job not valid! {}".format(comment))
                 do_write_cron = False

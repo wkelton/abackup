@@ -8,7 +8,7 @@ from typing import List
 
 def to_human_readable(num: float, prefix: str = '', suffix: str = 'B'):
     start = False
-    for unit in [ '', 'Ki','Mi','Gi','Ti','Pi','Ei','Zi' ]:
+    for unit in ['', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi']:
         start = start or prefix == unit
         if not start:
             continue
@@ -39,7 +39,7 @@ def get_fs_stats(path: str):
 
 
 def get_total_size(path: str, log: logging.Logger = None):
-    command_list = [ 'du', '-s', path ]
+    command_list = ['du', '-s', path]
     if log:
         log.debug("Getting dir size: {}".format(" ".join(command_list)))
     run_out = subprocess.run(command_list, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
@@ -84,7 +84,9 @@ class PoolStatus:
 
     def __str__(self):
         return "PoolStatus: {} ({}) -{}- {:.2%} used\n\t{}{}".format(self.pool, self.path, self.state.name,
-            self.utilization, "\n\t".join([str(ds) for ds in self.drive_status]), "\n\t" + self.message if self.message else "")
+                                                                     self.utilization,
+                                                                     "\n\t".join([str(ds) for ds in self.drive_status]),
+                                                                     "\n\t" + self.message if self.message else "")
 
     @property
     def available(self):
