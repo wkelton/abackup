@@ -90,7 +90,10 @@ def do_sync(origin: str, destination: str, sync_options: SyncOptions, log: loggi
             sync_type: str = 'manual', pull: bool = False):
     command_list = ['rsync', '-az', '--stats', '--info=del', '--info=name']
     if sync_options.delete:
-        command_list.extend(['--delete', "--max-delete={}".format(sync_options.max_delete)])
+        if sync_options.max_delete:
+            command_list.extend(['--delete', "--max-delete={}".format(sync_options.max_delete)])
+        else:
+            command_list.append('--delete')
     if remote:
         if remote.ssh_options():
             command_list.extend(['-e', "ssh {}".format(" ".join(remote.ssh_options()))])
