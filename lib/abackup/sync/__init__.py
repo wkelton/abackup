@@ -7,16 +7,18 @@ from abackup import config, healthchecks as hc, notifications
 
 
 class SyncOptions:
-    def __init__(self, delete: bool = False, max_delete: int = None):
+    def __init__(self, delete: bool = False, max_delete: int = None, copy_unsafe_links: bool = False):
         self.delete = delete
         self.max_delete = max_delete
+        self.copy_unsafe_links = copy_unsafe_links
 
     def mask(self, options):
         if not options:
-            return SyncOptions(self.delete, self.max_delete)
+            return SyncOptions(self.delete, self.max_delete, self.copy_unsafe_links)
         else:
             return SyncOptions(options.delete if options.delete else self.delete,
-                               options.max_delete if options.max_delete else self.max_delete)
+                               options.max_delete if options.max_delete else self.max_delete,
+                               options.copy_unsafe_links if options.copy_unsafe_links else self.copy_unsafe_links)
 
     @staticmethod
     def default():

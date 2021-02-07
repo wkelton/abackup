@@ -167,14 +167,15 @@ owned_data: # optional
   o1:
     path: /path/to/owned/data/o1
     options: # optional
-      delete: false # optional
-      max_delete: 100 # optional
+      delete: False # optional
+      max_delete: 10 # optional
+      copy_unsafe_links: False # optional
     auto_sync: # optional
       - remote_name: r1
         notify: "never" # optional
         frequency: "0 1 * * *" # optional
         options: # optional
-          delete: true # optional
+          delete: True # optional
         healthchecks: # optional
           base_url: 'https://hc-ping.com' # optional
           uuid: 'my-uuid' #optional

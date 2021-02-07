@@ -94,6 +94,8 @@ def do_sync(origin: str, destination: str, sync_options: SyncOptions, log: loggi
             command_list.extend(['--delete', "--max-delete={}".format(sync_options.max_delete)])
         else:
             command_list.append('--delete')
+    if sync_options.copy_unsafe_links:
+        command_list.append('--copy-unsafe-links')
     if remote:
         if remote.ssh_options():
             command_list.extend(['-e', "ssh {}".format(" ".join(remote.ssh_options()))])
