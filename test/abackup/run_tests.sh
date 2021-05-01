@@ -10,7 +10,7 @@ function die() {
   echo "        ERROR"
   echo "${msg}"
   echo
-  echo "See the log:   absync --config backup.yml log"
+  echo "See the log:   abackup --config backup.yml log"
   echo
   echo "Be sure to cleanup."
 

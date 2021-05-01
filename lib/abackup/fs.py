@@ -6,6 +6,21 @@ from enum import Enum, auto
 from typing import List
 
 
+def find_files(path: str, prefix: str, extension: str = ''):
+    return [filename for filename in next(os.walk(path))[2]
+            if filename.startswith(prefix) and filename.endswith(extension)]
+
+
+def find_youngest_file(path: str, prefix: str, extension: str = ''):
+    filenames = find_files(path, prefix, extension)
+    return max(filenames, key=lambda fn: os.stat(os.path.join(path, fn)).st_mtime) if filenames else None
+
+
+def find_oldest_file(path: str, prefix: str, extension: str = ''):
+    filenames = find_files(path, prefix, extension)
+    return min(filenames, key=lambda fn: os.stat(os.path.join(path, fn)).st_mtime) if filenames else None
+
+
 def to_human_readable(num: float, prefix: str = '', suffix: str = 'B'):
     start = False
     for unit in ['', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi']:

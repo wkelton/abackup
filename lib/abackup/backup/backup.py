@@ -5,7 +5,7 @@ import os
 from inspect import Traceback, currentframe, getframeinfo
 from typing import List
 
-from abackup import healthchecks as hc, notifications
+from abackup import fs, healthchecks as hc, notifications
 from abackup.backup import Config
 from abackup.backup.project import Container
 
@@ -51,13 +51,12 @@ def notify_or_log(notifier: notifications.SlackNotifier, container_name: str, su
             container_name, len(successful_commands), len(failed_commands), notify_mode.name))
 
 
-def rotate_backup(path: str, count: int):
-    if count > 1:
-        for i in range(count - 1, 1, -1):
-            if os.path.isfile("{}.{}".format(path, i - 1)):
-                os.rename("{}.{}".format(path, i - 1), "{}.{}".format(path, i))
-        if os.path.isfile(path):
-            os.rename(path, "{}.1".format(path))
+def remove_backup(count: int, path: str, prefix: str, extension: str = None, log: logging.Logger = None):
+    filenames = fs.find_files(path, prefix, extension)
+    if len(filenames) > count:
+        os.remove(os.path.join(path, fs.find_oldest_file(path, prefix, extension)))
+        if log:
+            log.info("removed previous backup")
 
 
 def perform_backup(config: Config, project_name: str, containers: List[Container],
@@ -88,21 +87,19 @@ def perform_backup(config: Config, project_name: str, containers: List[Container
 
         if not skip_backup:
             for command in container.build_database_backup_commands(backup_path):
-                rotate_backup(command.backup_file, container.backup.version_count)
-                if container.backup.version_count > 1:
-                    log.info("rotated backups")
                 if command.run(log):
                     os.chmod(command.backup_file, config.file_permissions)
+                    remove_backup(container.backup.version_count, backup_path, command.file_prefix,
+                                  command.file_extension, log)
                     successful_commands.append(command.friendly_str())
                 else:
                     log.error("failed running database backup for {}".format(command.name))
                     failed_commands.append(command.friendly_str())
             for command in container.build_directory_backup_commands(backup_path):
-                rotate_backup(command.backup_file, container.backup.version_count)
-                if container.backup.version_count > 1:
-                    log.info("rotated backups")
                 if command.run(log):
                     os.chmod(command.backup_file, config.file_permissions)
+                    remove_backup(container.backup.version_count, backup_path, command.file_prefix,
+                                  command.file_extension, log)
                     successful_commands.append(command.friendly_str())
                 else:
                     log.error("failed running directory backup for {}".format(command.directory))
