@@ -3,7 +3,7 @@ import yaml
 
 from typing import Any, Dict, List
 
-from abackup import healthchecks as hc, notifications
+from abackup import fs, healthchecks as hc, notifications
 from abackup.docker import Command, DockerCommand, DirectoryBackupCommand, DirectoryRestoreCommand, \
     MysqlBackupCommand, MysqlRestoreCommand, PostgresBackupCommand, PostgresRestoreCommand
 
@@ -217,10 +217,6 @@ def get_all_backup_files_for_container(backup_path: str, container: Container):
     files = []
     for command in container.build_directory_backup_commands(backup_path) + container.build_database_backup_commands(
             backup_path):
-        if os.path.isfile(command.backup_file):
-            files.append(command.backup_file)
-        for i in range(1, container.backup.version_count):
-            file_path = "{}.{}".format(command.backup_file, i)
-            if os.path.isfile(file_path):
-                files.append(file_path)
+        files.extend([os.path.join(backup_path, fn) for fn in fs.find_files(backup_path, command.file_prefix,
+                                                                            command.file_extension)])
     return files
