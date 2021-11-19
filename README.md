@@ -100,6 +100,8 @@ containers:
         uuid: 'my-uuid' #optional
         do_include_messages: True # optional
         do_notify_start: True # optional
+        do_notify_failure: True # optional
+        do_notify_success: True # optional
 
     restore:
       pre_commands: # optional
