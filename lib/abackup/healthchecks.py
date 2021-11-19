@@ -47,7 +47,7 @@ class HealthcheckResult:
         return cls(is_fail=True, code=code, message=message)
 
     @classmethod
-    def success(cls, code: int, message: str = ''):
+    def success(cls, code: int = 200, message: str = ''):
         return cls(is_fail=False, code=code, message=message)
 
     def is_error(self):
@@ -95,17 +95,17 @@ class Healthcheck:
 
     def notify_start(self):
         if not self.do_notify_start:
-            return HealthcheckResult.success(code=0)
+            return HealthcheckResult.success(message="skipping healthcheck start ping")
         return self._request_get('/start')
 
     def notify_success(self):
         if not self.do_notify_success:
-            return HealthcheckResult.success(code=0)
+            return HealthcheckResult.success(message="skipping healthcheck success ping")
         return self._request_get('')
 
     def notify_failure(self, message: str = None):
         if not self.do_notify_failure:
-            return HealthcheckResult.success(code=0)
+            return HealthcheckResult.success(message="skipping healthcheck failure ping")
         if self.do_include_messages:
             return self._request_post('/fail', data=message)
         else:
