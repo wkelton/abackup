@@ -56,17 +56,21 @@ class HealthcheckResult:
 
 class Healthcheck:
     def __init__(self, base_url: str = None, uuid: str = None, do_include_messages: bool = None,
-                 do_notify_start: bool = None):
+                 do_notify_start: bool = None, do_notify_failure: bool = None, do_notify_success: bool = None):
         self.base_url = base_url
         self.uuid = uuid
         self.do_include_messages = do_include_messages
         self.do_notify_start = do_notify_start
+        self.do_notify_failure = do_notify_failure
+        self.do_notify_success = do_notify_success
 
     def override(self, other):
         return Healthcheck(base_url=other.base_url if other.base_url else self.base_url,
                            uuid=other.uuid if other.uuid else self.uuid,
                            do_include_messages=other.do_include_messages if other.do_include_messages is not None else self.do_include_messages,
-                           do_notify_start=other.do_notify_start if other.do_notify_start is not None else self.do_notify_start)
+                           do_notify_start=other.do_notify_start if other.do_notify_start is not None else self.do_notify_start,
+                           do_notify_failure=other.do_notify_failure if other.do_notify_failure is not None else self.do_notify_failure,
+                           do_notify_success=other.do_notify_success if other.do_notify_success is not None else self.do_notify_success)
 
     def is_valid(self):
         return self.base_url and self.uuid
@@ -95,10 +99,17 @@ class Healthcheck:
         return self._request_get('/start')
 
     def notify_success(self):
+        if not self.do_notify_success:
+            return HealthcheckResult.success(code=0)
         return self._request_get('')
 
     def notify_failure(self, message: str = None):
-        return self._request_post('/fail', data=message)
+        if not self.do_notify_failure:
+            return HealthcheckResult.success(code=0)
+        if self.do_include_messages:
+            return self._request_post('/fail', data=message)
+        else:
+            return self._request_get('/fail')
 
 
 def perform_healthcheck_start(default_check: Healthcheck, check: Healthcheck, name: str,
