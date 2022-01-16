@@ -1,61 +1,14 @@
 import logging
 import os
-import shlex
-import subprocess
 import time
 import uuid
 
 from typing import List
 
-from abackup import fs
+from abackup import Command, fs
 
 
 # TODO: look into replacing all the subprocess calls with the python docker library
-
-
-class Command:
-    def __init__(self, command_string: str, input: str = None, input_path: str = None, output_path: str = None):
-        self.command_string = command_string
-        self.input_str = input
-        self.input_path = input_path
-        self.output_path = output_path
-        self._input = None
-
-    def __str__(self):
-        return self.friendly_str()
-
-    def friendly_str(self):
-        return self.command_string
-
-    def encoded_input(self):
-        if not self._input:
-            if self.input_str:
-                self._input = self.input_str.encode()
-            elif self.input_path:
-                with open(self.input_path, 'rb') as in_file:
-                    self._input = in_file.read()
-        return self._input
-
-    @property
-    def capture_output(self):
-        return self.output_path is not None
-
-    def _run(self, command: str, log: logging.Logger):
-        log.debug("Command::_run({}, {}):".format(command, self.output_path))
-        if self.capture_output:
-            with open(self.output_path, 'wb') as output:
-                run_result = subprocess.run(shlex.split(command), input=self.encoded_input(), check=False,
-                                            stdout=output, stderr=subprocess.PIPE)
-        else:
-            run_result = subprocess.run(shlex.split(command), input=self.encoded_input(), check=False,
-                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        if run_result.returncode != 0:
-            log.critical("COMMAND FAILED: {}".format(command))
-            log.critical(run_result.stderr.decode())
-        return run_result.returncode == 0
-
-    def run(self, log: logging.Logger):
-        return self._run(self.command_string, log)
 
 
 class DockerCommand(Command):
