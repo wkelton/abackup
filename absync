@@ -9,7 +9,7 @@ import sys
 from abackup import appcron
 from abackup.sync import Config
 from abackup.sync.examine import perform_examine
-from abackup.sync.sync import perform_sync, perform_auto_sync
+from abackup.sync.sync import perform_rsync, perform_auto_sync
 from abackup.sync.updatecron import perform_update_cron
 
 
@@ -155,7 +155,7 @@ def push_command(ctx, delete: bool, max_delete: int, port: int, local_name: str,
 
     log.info("--- push started")
 
-    ret = perform_sync(config, local_name, destination, False, log, delete, max_delete, port)
+    ret = perform_rsync(config, local_name, destination, False, log, delete, max_delete, port)
 
     if ret:
         log.info("--- push finished.")
@@ -184,7 +184,7 @@ def pull_command(ctx, delete: bool, max_delete: int, port: int, stored_name: str
 
     log.info("--- pull started")
 
-    ret = perform_sync(config, stored_name, source, True, log, delete, max_delete, port)
+    ret = perform_rsync(config, stored_name, source, True, log, delete, max_delete, port)
 
     if ret:
         log.info("--- pull finished.")
@@ -196,14 +196,14 @@ def pull_command(ctx, delete: bool, max_delete: int, port: int, stored_name: str
 @cli.command('auto')
 @click.pass_context
 @click.option('--data-name', help="owned_data or stored_data name to limit syncing.")
-@click.option('--remote-name', help="Name of the remote host (in auto_sync settings) to limit syncing.")
+@click.option('--sync-name', help="Name of the auto sync (in auto_sync settings) to limit syncing.")
 @click.option('--sync-type', type=click.Choice(['manual', 'auto']), default='manual',
               help="Name for the type of sycning, used for logging. Defaults to 'manual'.")
 @click.option('--notify', type=click.Choice(['auto', 'always', 'never']), default='never',
               help="Notification setting, auto: notify on failure, always: always notify, never: never notify. "
                    "Defaults to never.")
 @click.option('--healthchecks', flag_value=True, help="Perform healthcheks if configured.")
-def auto_command(ctx, data_name: str, remote_name: str, sync_type: str, notify: str, healthchecks: bool):
+def auto_command(ctx, data_name: str, sync_name: str, sync_type: str, notify: str, healthchecks: bool):
     """Run all the configured auto syncs.
 
     This will run the sync for all owned_data and stored_data which has configured auto_sync settings.
@@ -214,7 +214,7 @@ def auto_command(ctx, data_name: str, remote_name: str, sync_type: str, notify: 
 
     log.info("--- auto sync started")
 
-    ret = perform_auto_sync(config, absync_options, notify, log, data_name, remote_name, sync_type,
+    ret = perform_auto_sync(config, absync_options, notify, log, data_name, sync_name, sync_type,
                             do_healthchecks=healthchecks)
 
     if ret:

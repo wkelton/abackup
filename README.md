@@ -93,7 +93,7 @@ containers:
       version_count: 1 # optional
       auto_backup: # optional
         - frequency: "0 0 * * *"
-          notify: "always"
+          notify: always
       docker_options: [] # optional
       healthchecks: # optional
         base_url: 'https://hc-ping.com' # optional
@@ -168,22 +168,81 @@ The specific config file for the absync tool has the following settings:
 owned_data: # optional
   o1:
     path: /path/to/owned/data/o1
-    options: # optional
-      delete: False # optional
-      max_delete: 10 # optional
-      copy_unsafe_links: False # optional
+    driver_common_settings:
+      - type: rsync
+        settings:
+          delete: False # optional
+          max_delete: 10 # optional
+          copy_unsafe_links: False # optional
+      - type: restic
+        settings:
+          global_options: # optional
+            verbose: True # default
+
     auto_sync: # optional
-      - remote_name: r1
-        notify: "never" # optional
+      - sync_name: "foo"
+        notify: never # optional
         frequency: "0 1 * * *" # optional
-        options: # optional
-          delete: True # optional
         healthchecks: # optional
           base_url: 'https://hc-ping.com' # optional
-          uuid: 'my-uuid' #optional
+          uuid: 'my-uuid' # optional
           do_include_messages: True # optional
           do_notify_start: True # optional
-      - remote_name: r2
+        driver:
+          type: rsync
+          settings:
+            remote_name: r1
+            options: # optional
+              delete: True
+      - sync_name: "bar"
+        notify: never # optional
+        frequency: "0 1 * * *" # optional
+        healthchecks: # optional
+          uuid: 'my-uuid'
+        driver:
+          type: restic
+          settings:
+            repo_name: repo1
+            global_options: # optional
+              verbose: True # default
+          commands:
+            - command: backup
+              options:
+                tags:
+                  - abackup # default
+                  - <owned_data name> # default
+            - command: check
+            - command: forget
+              options:
+                tags:
+                  - abackup,<owned_data name> # default
+                host: <hostname> # default
+                keep-last: 3
+            - command: prune
+      - sync_name: "restic-example"
+        notify: auto
+        frequency: "0 1 * * *"
+        healthchecks:
+          uuid: 'my-uuid'
+        driver:
+          type: restic
+          settings:
+            repo_name: repo1
+          commands:
+            - command: backup
+              options:
+                tags:
+                  - abackup # default
+                  - <owned_data name> # default
+            - command: check
+            - command: forget
+              options:
+                tags:
+                  - abackup,<owned_data name> # default
+                host: <hostname> # default
+                keep-last: 3
+                prune: True
+            - command: check
 
   o2:
     path: /path/to/owned/data/o2
@@ -204,4 +263,29 @@ remotes:  # optional
     ssh_key: /home/foo/.ssh/id_rsa # optional
   r2:
     host: some.domain.xyz
+
+restic_repositories:  # optional
+  repo1:
+    password_provider:
+      type: file|command
+      arg: <file path/command string>
+    backend:
+      type: rest
+      path:
+      env:
+      settings:
+        user:
+        password_provider:
+          type: file|command
+          arg: <file path/command string>
+        host:
+        port:
+  repo2:
+    password_provider:
+      type: file|command
+      arg: <file path/command string>
+    backend:
+      type: local
+      path:
+    
 ```
