@@ -150,56 +150,142 @@ class PostgresRestoreCommand(PostgresBRCommand):
         self.backup_file = os.path.join(backup_path, backup_filename)
 
 
-class DirectoryBackupCommand(DockerCommand):
-    def __init__(self, directory: str, backup_path: str, container_name: str, docker_options: List[str]):
+class TarBackupSettings:
+    def __init__(self, is_single_backup: bool, prefix: str = None, force_timestamp: bool = None):
+        self.is_single_backup = is_single_backup
+        self.prefix = prefix
+        self.force_timestamp = force_timestamp
+
+    @property
+    def use_identifier_as_perfix(self):
+        return self.prefix is None
+
+    @property
+    def use_timestamp(self):
+        return self.force_timestamp or not self.is_single_backup
+
+
+class DockerTarBuilder:
+    def __init__(self, identifier: str, source_dir_in_container: str, dest_dir_in_container: str, dest_dir_on_host: str, settings: TarBackupSettings, override_file_name: str = None):
+        self.identifier = identifier
+        self.source_dir_in_container = source_dir_in_container
+        self.dest_dir_in_container = dest_dir_in_container
+        self.dest_dir_on_host = dest_dir_on_host
+        self.settings = settings
+        self.override_file_name = override_file_name
+        self._file_name = None
+
+    @property
+    def prefix(self):
+        if self.settings.use_identifier_as_perfix:
+            return self.identifier
+        return self.settings.prefix
+
+    @property
+    def extension(self):
+        return 'tar.gz'
+
+    @property
+    def file_name(self):
+        if self.override_file_name:
+            return self.override_file_name
+        if not self._file_name:
+            if not self.settings.use_timestamp:
+                self._file_name = "{}.{}".format(self.prefix, self.extension)
+            else:
+                self._file_name = "{}_{}.{}".format(self.prefix, time.strftime("%Y%m%d_%H%M%S"), self.extension)
+        return self._file_name
+
+    @property
+    def container_file_path(self):
+        return os.path.join(self.dest_dir_in_container, self.file_name)
+
+    @property
+    def host_file_path(self):
+        return os.path.join(self.dest_dir_on_host, self.file_name)
+
+    @property
+    def command_create_str_in_container(self):
+        return "tar -czf {} {}".format(self.container_file_path, self.source_dir_in_container)
+
+    @property
+    def command_extract_str_in_container(self):
+        return "tar -xzf {}".format(self.container_file_path)
+
+
+def construct_create_tar_builder(directory: str, container_dir: str, host_tmp_dir: str, settings: TarBackupSettings):
+    return DockerTarBuilder(os.path.basename(directory), directory, container_dir, host_tmp_dir, settings)
+
+
+def construct_extract_tar_builder(tar_name: str, directory: str, container_dir: str, host_tmp_dir: str, settings: TarBackupSettings):
+    return DockerTarBuilder(os.path.basename(directory), directory, container_dir, host_tmp_dir, settings, tar_name)
+
+
+def get_new_host_tmp_dir():
+    return os.path.join(os.getcwd(), '.abackup-tmp', str(uuid.uuid4()))
+
+
+class DirectoryTarCommand(DockerCommand):
+    def __init__(self, directory: str, backup_path: str, tar_builder: DockerTarBuilder, tar_command: str, container_name: str, docker_options: List[str]):
         self.directory = directory
-        self.file_prefix = os.path.basename(directory)
-        self.file_extension = 'tar.gz'
-        tar_name = "{}_{}.{}".format(self.file_prefix, time.strftime("%Y%m%d_%H%M%S"), self.file_extension)
-        local_dir = "/abackup"
-        self.local_file = os.path.join(local_dir, tar_name)
-        self.tmp_dir = os.path.join(os.getcwd(), '.abackup-tmp', str(uuid.uuid4()))
-        self.tmp_file = os.path.join(self.tmp_dir, tar_name)
-        self.backup_file = os.path.join(backup_path, tar_name)
-        d_opts = docker_options + ['--rm', '-v', "{}:{}".format(self.tmp_dir, local_dir)]
-        super().__init__("tar -czf {} {}".format(self.local_file, directory), container_name, d_opts)
+        self.backup_path = backup_path
+        self.tar_builder = tar_builder
+
+        d_opts = docker_options + ['--rm', '-v', "{}:{}".format(self.tar_builder.dest_dir_on_host, DirectoryTarCommand.default_container_dir())]
+        super().__init__(tar_command, container_name, d_opts)
+
+    @classmethod
+    def default_container_dir(cls):
+        return '/abackup'
+
+    @property
+    def backup_file(self):
+        return os.path.join(self.backup_path, self.tar_builder.file_name)
+
+    @property
+    def file_prefix(self):
+        return self.tar_builder.prefix
+
+    @property
+    def file_extension(self):
+        return self.tar_builder.extension
 
     def friendly_str(self):
         return "tar {}".format(self.directory)
 
+
+class DirectoryTarBackupCommand(DirectoryTarCommand):
+    def __init__(self, directory: str, backup_path: str, tar_settings: TarBackupSettings, container_name: str, docker_options: List[str]):
+        tar_builder = construct_create_tar_builder(directory, DirectoryTarCommand.default_container_dir(), get_new_host_tmp_dir(), tar_settings)
+        super().__init__(directory, backup_path, tar_builder, tar_builder.command_create_str_in_container, container_name, docker_options)
+
     def run(self, log: logging.Logger):
-        os.makedirs(self.tmp_dir)
-        copy_temp_file_from_host_command = Command("cp {} {}".format(self.tmp_file, self.backup_file))
-        delete_temp_file_from_container_command = self.new_command("rm {}".format(self.local_file))
-        delete_temp_dir_from_host_command = Command("rm -rf {}".format(self.tmp_dir))
-        return super().run(log) and copy_temp_file_from_host_command.run(
-            log) and delete_temp_file_from_container_command.run(log) and delete_temp_dir_from_host_command.run(log)
+        os.makedirs(self.tar_builder.dest_dir_on_host)
+        copy_temp_file_from_host_command = Command("cp {} {}".format(self.tar_builder.host_file_path, self.backup_file))
+        delete_temp_file_from_container_command = self.new_command("rm {}".format(self.tar_builder.container_file_path))
+        delete_temp_dir_from_host_command = Command("rm -rf {}".format(self.tar_builder.dest_dir_on_host))
+        return super().run(log) \
+            and copy_temp_file_from_host_command.run(log) \
+            and delete_temp_file_from_container_command.run(log) \
+            and delete_temp_dir_from_host_command.run(log)
 
 
-class DirectoryRestoreCommand(DockerCommand):
-    def __init__(self, directory: str, backup_path: str, container_name: str, docker_options: List[str],
+class DirectoryTarRestoreCommand(DirectoryTarCommand):
+    def __init__(self, directory: str, backup_path: str, tar_settings: TarBackupSettings, container_name: str, docker_options: List[str],
                  tar_name: str = None):
-        self.directory = directory
-        self.file_prefix = os.path.basename(directory)
-        self.file_extension = 'tar.gz'
-        tar_name = tar_name if tar_name else fs.find_youngest_file(backup_path, self.file_prefix, self.file_extension)
-        local_dir = "/abackup"
-        self.local_file = os.path.join(local_dir, tar_name)
-        self.tmp_dir = os.path.join(os.getcwd(), '.abackup-tmp', str(uuid.uuid4()))
-        self.tmp_file = os.path.join(self.tmp_dir, tar_name)
-        self.backup_file = os.path.join(backup_path, tar_name)
-        d_opts = docker_options + ['--rm', '-v', "{}:{}".format(self.tmp_dir, local_dir)]
-        super().__init__("tar -xzf {}".format(self.local_file), container_name, d_opts)
-
-    def friendly_str(self):
-        return "tar {}".format(self.directory)
+        tar_builder = construct_extract_tar_builder(tar_name, directory, DirectoryTarCommand.default_container_dir(), get_new_host_tmp_dir(), tar_settings)
+        if not tar_builder.override_file_name:
+            tar_builder.override_file_name = fs.find_youngest_file(backup_path, tar_builder.prefix, tar_builder.extension)
+        super().__init__(directory, backup_path, tar_builder, tar_builder.command_extract_str_in_container, container_name, docker_options)
 
     def run(self, log: logging.Logger):
-        os.makedirs(self.tmp_dir)
-        copy_backup_file_from_host_command = Command("cp {} {}".format(self.backup_file, self.tmp_file))
-        chmod_temp_file_from_host_command = Command("chmod o+r {}".format(self.tmp_file))
-        delete_temp_file_from_host_command = Command("rm {}".format(self.tmp_file))
-        delete_temp_dir_from_host_command = Command("rm -rf {}".format(self.tmp_dir))
-        return copy_backup_file_from_host_command.run(log) and chmod_temp_file_from_host_command.run(
-            log) and super().run(log) and delete_temp_file_from_host_command.run(
-            log) and delete_temp_dir_from_host_command.run(log)
+        os.makedirs(self.tar_builder.dest_dir_on_host)
+        copy_backup_file_from_host_command = Command("cp {} {}".format(self.backup_file, self.tar_builder.host_file_path))
+        chmod_temp_file_from_host_command = Command("chmod o+r {}".format(self.tar_builder.host_file_path))
+        delete_temp_file_from_host_command = Command("rm {}".format(self.tar_builder.host_file_path))
+        delete_temp_dir_from_host_command = Command("rm -rf {}".format(self.tar_builder.dest_dir_on_host))
+        return copy_backup_file_from_host_command.run(log) \
+            and chmod_temp_file_from_host_command.run(log) \
+            and super().run(log) \
+            and delete_temp_file_from_host_command.run(log) \
+            and delete_temp_dir_from_host_command.run(log)

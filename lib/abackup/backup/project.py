@@ -4,8 +4,8 @@ import yaml
 from typing import Any, Dict, List
 
 from abackup import fs, healthchecks as hc, notifications
-from abackup.docker import Command, DockerCommand, DirectoryBackupCommand, DirectoryRestoreCommand, \
-    MysqlBackupCommand, MysqlRestoreCommand, PostgresBackupCommand, PostgresRestoreCommand
+from abackup.docker import Command, DockerCommand, DirectoryTarBackupCommand, DirectoryTarRestoreCommand, DirectoryTarCommand, \
+    MysqlBackupCommand, MysqlRestoreCommand, PostgresBackupCommand, PostgresRestoreCommand, TarBackupSettings
 
 
 def build_commands(command_input: List[Any], container_name: str):
@@ -166,15 +166,15 @@ class Container:
             self.name, ", ".join([str(d) for d in self.databases]), ", ".join(self.directories),
             self.backup, self.restore)
 
-    def build_directory_backup_commands(self, backup_path: str):
+    def build_directory_backup_commands(self, backup_path: str) -> List[DirectoryTarCommand]:
         if self.backup:
-            return [DirectoryBackupCommand(cdir, backup_path, self.name, self.backup.docker_options)
+            return [DirectoryTarBackupCommand(cdir, backup_path, TarBackupSettings(self.backup.version_count == 1), self.name, self.backup.docker_options)
                     for cdir in self.directories]
         return []
 
-    def build_directory_restore_commands(self, backup_path: str):
+    def build_directory_restore_commands(self, backup_path: str) -> List[DirectoryTarCommand]:
         if self.restore:
-            return [DirectoryRestoreCommand(cdir, backup_path, self.name, self.restore.docker_options)
+            return [DirectoryTarRestoreCommand(cdir, backup_path, TarBackupSettings(self.backup.version_count == 1), self.name, self.backup.docker_options)
                     for cdir in self.directories]
         return []
 
