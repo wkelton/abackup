@@ -49,3 +49,10 @@ containers:
     backup:
       version_count: 2
     restore: {}
+
+  test-single-tar:
+    directories:
+      - /data/bar
+    backup:
+      version_count: 1
+    restore: {}
