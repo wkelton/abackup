@@ -22,6 +22,14 @@ services:
     environment:
       POSTGRES_PASSWORD: "testpass"
 
+  test_single_tar:
+    image: busybox
+    container_name: test-single-tar
+    command: tail -F anything
+    volumes:
+      - test_single_tar:/data/bar
+
 volumes:
   test_data:
   test_postgres:
+  test_single_tar:

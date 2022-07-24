@@ -9,5 +9,7 @@ __pycache__/
 test/**/logs/
 test/**/data/
 
+test/abackup/.abackup-tmp/
+
 test/abdata/data.yml
 test/absync/sync.yml

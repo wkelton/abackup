@@ -50,6 +50,12 @@ echo
 "${setup_dir}/init_postgres.sh"
 "${setup_dir}/populate_postgres.sh"
 "${setup_dir}/verify_postgres.sh" || die 'Verify failed after populating postgres.' $?
+echo
+echo "Setting up Test container..."
+echo
+"${setup_dir}/init_test_container.sh"
+"${setup_dir}/populate_test_dir.sh"
+"${setup_dir}/verify_test_dir.sh" || die 'Verify failed after populating test dir.' $?
 
 abackup --config backup.yml examine
 
@@ -65,7 +71,7 @@ echo
 echo "################################################"
 echo "    backup"
 echo
-abackup --config backup.yml backup --healthchecks || die 'Backup failed!' $?
+abackup --debug --config backup.yml backup --healthchecks || die 'Backup failed!' $?
 abackup --config backup.yml examine
 echo
 
@@ -77,8 +83,9 @@ echo
 "${setup_dir}/tear_down.sh"
 "${setup_dir}/init_mysql.sh"
 "${setup_dir}/init_postgres.sh"
+"${setup_dir}/init_test_container.sh"
 
-abackup --config backup.yml restore || die 'Restore failed!' $?
+abackup --debug --config backup.yml restore || die 'Restore failed!' $?
 
 echo
 echo "Verifying Mysql:"
@@ -86,13 +93,17 @@ echo "Verifying Mysql:"
 mysql_code=$?
 echo
 echo "Verifying Postgres:"
-"${setup_dir}/verify_postgres.sh"
+"${setup_dir}/verify_test_dir.sh"
 postgres_code=$?
+echo
+echo "Verifying Test Container:"
+"${setup_dir}/verify_test_dir.sh"
+test_container_code=$?
 echo
 
 abackup --config backup.yml log
 
-if [[ $mysql_code -ne 0 || $postgres_code -ne 0 ]]; then
+if [[ $mysql_code -ne 0 || $postgres_code -ne 0 || $test_container_code -ne 0 ]]; then
   finalize 1
 else
   finalize 0
