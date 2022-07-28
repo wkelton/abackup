@@ -35,7 +35,7 @@ class DockerCommand(Command):
                                                    self.command_string)
             log.info("Running command in the {} container: {}".format(self.container_name, self.friendly_str()))
         else:
-            command = "{} --volumes-from {} {} busybox sh -c '{}'".format(self.docker_command, self.container_name,
+            command = "{} --volumes-from {} {} ubuntu sh -c '{}'".format(self.docker_command, self.container_name,
                                                                           self.formatted_options(), self.command_string)
             log.info("Running command in a busybox container: {}".format(self.friendly_str()))
         return self._run(command, log)
@@ -206,7 +206,7 @@ class DockerTarBuilder:
 
     @property
     def command_create_str_in_container(self):
-        return "tar -czf {} {}".format(self.container_file_path, self.source_dir_in_container)
+        return "tar -cf - {} | gzip --rsyncable > {}".format(self.source_dir_in_container, self.container_file_path)
 
     @property
     def command_extract_str_in_container(self):
