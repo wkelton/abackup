@@ -4,8 +4,9 @@ import yaml
 from typing import Any, Dict, List
 
 from abackup import fs, healthchecks as hc, notifications
-from abackup.docker import Command, DockerCommand, DirectoryTarBackupCommand, DirectoryTarRestoreCommand, DirectoryTarCommand, \
-    MysqlBackupCommand, MysqlRestoreCommand, PostgresBackupCommand, PostgresRestoreCommand, TarBackupSettings
+from abackup.docker import BackupFileSettings, Command, DockerCommand, DirectoryTarBackupCommand, \
+    DirectoryTarRestoreCommand, DirectoryTarCommand, MysqlBackupCommand, MysqlRestoreCommand, PostgresBackupCommand, \
+    PostgresRestoreCommand, TarBackupSettings
 
 
 def build_commands(command_input: List[Any], container_name: str):
@@ -75,16 +76,16 @@ class MysqlDriverOptions:
         pass
 
 
-def build_mysql_backup_command(name: str, password: str, backup_path: str, container_name: str,
-                               docker_options: List[str],
+def build_mysql_backup_command(name: str, password: str, backup_path: str, settings: BackupFileSettings,
+                               container_name: str, docker_options: List[str],
                                user: str = None, options: MysqlDriverOptions = MysqlDriverOptions()):
-    return MysqlBackupCommand(name, password, backup_path, container_name, docker_options)
+    return MysqlBackupCommand(name, password, backup_path, settings, container_name, docker_options)
 
 
-def build_mysql_restore_command(name: str, password: str, backup_path: str, container_name: str,
-                                docker_options: List[str],
+def build_mysql_restore_command(name: str, password: str, backup_path: str, settings: BackupFileSettings,
+                                container_name: str, docker_options: List[str],
                                 user: str = None, options: MysqlDriverOptions = MysqlDriverOptions()):
-    return MysqlRestoreCommand(name, password, backup_path, container_name, docker_options)
+    return MysqlRestoreCommand(name, password, backup_path, settings, container_name, docker_options)
 
 
 ##
@@ -96,17 +97,17 @@ class PostgresDriverOptions:
         self.restore_all = restore_all
 
 
-def build_postgres_backup_command(name: str, backup_path: str, container_name: str, docker_options: List[str],
-                                  user: str = None, password: str = None,
+def build_postgres_backup_command(name: str, backup_path: str, settings: BackupFileSettings, container_name: str,
+                                  docker_options: List[str], user: str = None, password: str = None,
                                   options: PostgresDriverOptions = PostgresDriverOptions()):
-    return PostgresBackupCommand(name, backup_path, container_name, docker_options, user=user,
+    return PostgresBackupCommand(name, backup_path, settings, container_name, docker_options, user=user,
                                  password=password, dump_all=options.dump_all)
 
 
-def build_postgres_restore_command(name: str, backup_path: str, container_name: str, docker_options: List[str],
-                                   user: str = None, password: str = None,
+def build_postgres_restore_command(name: str, backup_path: str, settings: BackupFileSettings, container_name: str,
+                                   docker_options: List[str], user: str = None, password: str = None,
                                    options: PostgresDriverOptions = PostgresDriverOptions()):
-    return PostgresRestoreCommand(name, backup_path, container_name, docker_options, user=user,
+    return PostgresRestoreCommand(name, backup_path, settings, container_name, docker_options, user=user,
                                   password=password, restore_all=options.restore_all)
 
 
@@ -126,27 +127,27 @@ class DatabaseInfo:
         return "{} := {}".format(self.name, self.driver_name)
 
 
-def build_db_backup_command(database_info: DatabaseInfo, backup_path: str, container_name: str,
-                            docker_options: List[str]):
+def build_db_backup_command(database_info: DatabaseInfo, backup_path: str, settings: BackupFileSettings,
+                            container_name: str, docker_options: List[str]):
     if database_info.driver_name.lower() == 'mysql':
-        return build_mysql_backup_command(database_info.name, database_info.password, backup_path, container_name,
-                                          docker_options, user=database_info.user,
+        return build_mysql_backup_command(database_info.name, database_info.password, backup_path, settings,
+                                          container_name, docker_options, user=database_info.user,
                                           options=MysqlDriverOptions(**database_info.options))
     elif database_info.driver_name.lower() == 'postgres':
-        return build_postgres_backup_command(database_info.name, backup_path, container_name, docker_options,
+        return build_postgres_backup_command(database_info.name, backup_path, settings, container_name, docker_options,
                                              user=database_info.user, password=database_info.password,
                                              options=PostgresDriverOptions(**database_info.options))
     return None
 
 
-def build_db_restore_command(database_info: DatabaseInfo, backup_path: str, container_name: str,
-                             docker_options: List[str]):
+def build_db_restore_command(database_info: DatabaseInfo, backup_path: str, settings: BackupFileSettings,
+                            container_name: str, docker_options: List[str]):
     if database_info.driver_name.lower() == 'mysql':
-        return build_mysql_restore_command(database_info.name, database_info.password, backup_path, container_name,
-                                           docker_options, user=database_info.user,
+        return build_mysql_restore_command(database_info.name, database_info.password, backup_path, settings,
+                                           container_name, docker_options, user=database_info.user,
                                            options=MysqlDriverOptions(**database_info.options))
     elif database_info.driver_name.lower() == 'postgres':
-        return build_postgres_restore_command(database_info.name, backup_path, container_name, docker_options,
+        return build_postgres_restore_command(database_info.name, backup_path, settings, container_name, docker_options,
                                               user=database_info.user, password=database_info.password,
                                               options=PostgresDriverOptions(**database_info.options))
     return None
@@ -180,13 +181,13 @@ class Container:
 
     def build_database_backup_commands(self, backup_path: str):
         if self.backup:
-            return [build_db_backup_command(info, backup_path, self.name, self.backup.docker_options)
+            return [build_db_backup_command(info, backup_path, BackupFileSettings(self.backup.version_count == 1), self.name, self.backup.docker_options)
                     for info in self.databases]
         return []
 
     def build_database_restore_commands(self, backup_path: str):
         if self.restore:
-            return [build_db_restore_command(info, backup_path, self.name, self.restore.docker_options)
+            return [build_db_restore_command(info, backup_path, BackupFileSettings(self.backup.version_count == 1), self.name, self.restore.docker_options)
                     for info in self.databases]
         return []
 
