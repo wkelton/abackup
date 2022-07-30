@@ -131,8 +131,7 @@ def do_rsync(origin: str, destination: str, rsync_options: RsyncOptions, log: lo
         count_regex = re.compile(
             r"Number of regular files transferred:\s+([\d,]+)")
         deleted_regex = re.compile(r"Number of deleted files:\s+([\d,]+)")
-        bytes_regex = re.compile(
-            r"Total transferred file size:\s+([\d,]+)\s+bytes")
+        bytes_regex = re.compile(r"Total bytes sent:\s+([\d,]+)")
         for line in run_out.stdout.split("\n"):
             deleted_files_match = deleted_files_regex.match(line)
             count_match = count_regex.search(line)
