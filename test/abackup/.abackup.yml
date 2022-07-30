@@ -47,7 +47,7 @@ containers:
           dump_all: True
           restore_all: True
     backup:
-      version_count: 2
+      version_count: 1
     restore: {}
 
   test-single-tar:

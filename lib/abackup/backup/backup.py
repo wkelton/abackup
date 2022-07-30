@@ -88,7 +88,7 @@ def perform_backup(config: Config, project_name: str, containers: List[Container
         if not skip_backup:
             for command in container.build_database_backup_commands(backup_path):
                 if command.run(log):
-                    os.chmod(command.backup_file, config.file_permissions)
+                    os.chmod(command.backup_file_path, config.file_permissions)
                     remove_backup(container.backup.version_count, backup_path, command.file_prefix,
                                   command.file_extension, log)
                     successful_commands.append(command.friendly_str())
@@ -97,7 +97,7 @@ def perform_backup(config: Config, project_name: str, containers: List[Container
                     failed_commands.append(command.friendly_str())
             for command in container.build_directory_backup_commands(backup_path):
                 if command.run(log):
-                    os.chmod(command.backup_file, config.file_permissions)
+                    os.chmod(command.backup_file_path, config.file_permissions)
                     remove_backup(container.backup.version_count, backup_path, command.file_prefix,
                                   command.file_extension, log)
                     successful_commands.append(command.friendly_str())
