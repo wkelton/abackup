@@ -47,7 +47,7 @@ def perform_examine(config: Config, cron: appcron.AppCronTab, log: logging.Logge
         else:
             rows.append([name, 'unknown', '-', '-', '-', '-'])
     print(tabulate(rows, headers=[
-          'Owned Data', 'Last Sync', 'Destination', 'Files', 'Sent', 'Duration']))
+          'Owned Data', 'Last Sync', 'Destination', 'Files', 'Sent/Received', 'Duration']))
     print()
 
     # print stored_data
@@ -74,7 +74,7 @@ def perform_examine(config: Config, cron: appcron.AppCronTab, log: logging.Logge
         else:
             rows.append([name, 'unknown', '-', '-', '-', '-'])
     print(tabulate(rows, headers=[
-          'Stored Data', 'Last Sync', 'Origin', 'Files', 'Sent', 'Duration']))
+          'Stored Data', 'Last Sync', 'Origin', 'Files', 'Sent/Received', 'Duration']))
     print()
 
     # print cron
