@@ -4,7 +4,7 @@ import logging
 import re
 import subprocess
 from typing import List
-from abackup import fs, healthchecks as hc, notifications
+from abackup import RemoteCommand, fs, healthchecks as hc, notifications
 
 from abackup.sync import AutoSync, Config, DataDir, Remote, RsyncOptions, syncinfo
 
@@ -58,15 +58,9 @@ class RsyncInfo(syncinfo.SyncInfo):
 
 
 def get_path_from_remote(command: str, data_name: str, remote: Remote, absync_options: str, log: logging.Logger):
-    ssh_command_list = ['ssh'] + remote.ssh_options() + \
-        [remote.connection_string()]
-    sync_command = "bash --login -c 'absync {} {} {}'".format(
-        absync_options, command, data_name)
-    command_list = ssh_command_list + [sync_command]
-    log.info("Running absync {} on remote...".format(command))
-    log.debug(" ".join(command_list))
-    run_out = subprocess.run(command_list, stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE, universal_newlines=True)
+    absync_command = "absync {} {} {}".format(absync_options, command, data_name)
+    run_out = RemoteCommand(remote.ssh_options(), remote.connection_string(), absync_command, universal_newlines=True).run_with_result(log)
+
     if run_out.returncode == 0:
         path = run_out.stdout
         log.info("Succeeded getting {} from remote: {}".format(command, path))
@@ -222,3 +216,30 @@ def do_auto_rsync(config: Config, data_name: str, data_dir: DataDir, auto_sync: 
                                config.notifier, notify_mode, log, is_fail=sync_info is None, message=error_message)
 
     return sync_info
+
+
+def prepare_for_sync(config: Config, data_name: str, data_dir: DataDir, auto_sync: AutoSync, absync_options: str,
+                  log: logging.Logger, pull: bool = False):
+
+    remote_name = auto_sync.driver.settings.remote_name
+    remote = config.remotes[remote_name]
+
+
+    if pull:
+        pass
+    else:
+        # backup_paths = get_backups(config, project_name, containers, only_most_recent, log, only_identifier)
+        # abackup --config backup.yml get-backups --container test-mysql --identifier foo
+            # abackup --config backup.yml copy-backups --container test-mysql --identifier foo --most-recent  bar  baz
+
+        backup_dir_names = []
+        absync_command = "absync {} {} --container {} --identifier {} --most-recent {}".format(absync_options, 'copy-backups', container, identifier, " ".join(backup_dir_names))
+        run_result = RemoteCommand(remote.ssh_options(), remote.connection_string(), absync_command, universal_newlines=True).run(log)
+
+        if run_result:
+            log.info("Succeeded getting {} from remote: {}".format(command, path))
+            return True
+        else:
+            log.critical("Failed to get {} from remote!".format(command))
+            return False
+

@@ -10,7 +10,7 @@ from tabulate import tabulate
 
 from abackup import appcron, fs, notifications
 from abackup.backup import Config
-from abackup.backup.backup import perform_backup
+from abackup.backup.backup import perform_backup, perform_get_backups
 from abackup.backup.project import (ProjectConfig,
                                     get_all_backup_files_for_container)
 from abackup.backup.restore import perform_restore
@@ -186,6 +186,30 @@ def restore_command(ctx, container):
         log.info("--- Restore finished.")
     else:
         log.critical('--- Restore failed!')
+        exit(1)
+
+
+@cli.command('get-backups')
+@click.pass_context
+@click.option('--container', help="Container to use. If not specified, all containers for the project are used.")
+@click.option('--most-recent', flag_value=True, help="Only print the most recent backup files.")
+@click.option('--identifier', help="Filter to a specific backup dir/db.")
+def get_backups_command(ctx, container: str, most_recent: bool, identifier: str):
+    """Get backup file paths for a project's containers' data
+    """
+    config = ctx.obj['config']
+    project_name = ctx.obj['project_name']
+    project_config = ctx.obj['project_config']
+    log = ctx.obj['log']
+
+    log.info("--- get-backups {}".format(project_name))
+
+    ret = perform_get_backups(config, project_name, select_containers(container, project_config, log), most_recent, log, identifier)
+
+    if ret:
+        log.info("--- get-backups finished.")
+    else:
+        log.critical("--- get-backups failed!")
         exit(1)
 
 

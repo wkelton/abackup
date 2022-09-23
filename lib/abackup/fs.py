@@ -15,6 +15,8 @@ def ensure_dir_exists(path: str):
 
 
 def find_files(path: str, prefix: str, extension: str = ''):
+    if not os.path.isdir(path):
+        return []
     return [filename for filename in next(os.walk(path))[2]
             if filename.startswith(prefix) and filename.endswith(extension)]
 
