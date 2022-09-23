@@ -309,6 +309,7 @@ def get_new_host_tmp_dir():
 
 class DirectoryTarCommand(DockerCommand):
     def __init__(self, directory: str, backup_path: str, backup_tar_file: BackupTarFile, tar_command: str, container_name: str, docker_options: List[str]):
+        self.name = backup_tar_file.identifier
         self.directory = directory
         self.backup_path = backup_path
         self.backup_tar_file = backup_tar_file

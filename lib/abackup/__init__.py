@@ -1,6 +1,7 @@
 import logging
 import shlex
 import subprocess
+from typing import List
 
 
 class Command:
@@ -59,3 +60,15 @@ class Command:
 
     def run_with_result(self, log: logging.Logger) -> subprocess.CompletedProcess:
         return self._run_with_result(self.command_string, log)
+
+
+class RemoteCommand(Command):
+    def __init__(self, ssh_options: List[str], ssh_connection_string: str, command_string: str, do_not_wrap_command: bool = False,
+                 input: str = None, input_path: str = None, output_path: str = None, universal_newlines: bool = None):
+        ssh_command_list = ['ssh'] + ssh_options + [ssh_connection_string]
+        if do_not_wrap_command:
+            command_string = " ".join(ssh_command_list) + " " + command_string
+        else:
+            command_string = " ".join(ssh_command_list) + " \"bash --login -c '{}'\"".format(command_string)
+
+        super().__init__(command_string, input, input_path, output_path, universal_newlines)

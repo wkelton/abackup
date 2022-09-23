@@ -5,6 +5,14 @@ import subprocess
 from enum import Enum, auto
 from typing import List
 
+# TODO: add permissions
+def ensure_dir_exists(path: str):
+    if not os.path.isdir(path):
+        if os.path.exists(path):
+            return False
+    os.makedirs(path)
+    return True
+
 
 def find_files(path: str, prefix: str, extension: str = ''):
     return [filename for filename in next(os.walk(path))[2]
