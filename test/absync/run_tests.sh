@@ -40,14 +40,14 @@ echo
 echo "################################################"
 echo "    stored-path"
 echo
-absync --config sync.yml stored-path stored1
+absync --debug --config sync.yml stored-path stored1
 echo
 
 
 echo "################################################"
 echo "    auto"
 echo
-absync --config sync.yml auto --healthchecks || die 'Check failed!' $?
+absync --debug --config sync.yml auto --healthchecks || die 'Check failed!' $?
 absync --config sync.yml examine
 echo
 
