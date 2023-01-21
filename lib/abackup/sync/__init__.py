@@ -12,22 +12,24 @@ from abackup.restic import PasswordProvider, RepoConnection, RestBackend, Restic
 # Rsync
 
 class RsyncOptions:
-    def __init__(self, delete: bool = False, max_delete: int = None, copy_unsafe_links: bool = False):
+    def __init__(self, delete: bool = False, max_delete: int = None, copy_unsafe_links: bool = False, inplace: bool = False):
         self.delete = delete
         self.max_delete = max_delete
         self.copy_unsafe_links = copy_unsafe_links
+        self.inplace = inplace
 
     def mask(self, settings):
         if not settings:
-            return RsyncOptions(self.delete, self.max_delete, self.copy_unsafe_links)
+            return RsyncOptions(self.delete, self.max_delete, self.copy_unsafe_links, self.inplace)
         else:
             return RsyncOptions(settings.delete if settings.delete else self.delete,
                                 settings.max_delete if settings.max_delete else self.max_delete,
-                                settings.copy_unsafe_links if settings.copy_unsafe_links else self.copy_unsafe_links)
+                                settings.copy_unsafe_links if settings.copy_unsafe_links else self.copy_unsafe_links,
+                                settings.inplace if settings.inplace else self.inplace)
 
     @staticmethod
     def default():
-        return RsyncOptions(False, 10, False)
+        return RsyncOptions(False, 10, False, False)
 
 
 class RsyncSettings:
@@ -213,7 +215,7 @@ class ResticRepository:
 # Main
 
 class AutoSync:
-    def __init__(self, sync_name: str, driver: Dict[str, Any], notify: str = None, frequency: str = None,
+    def __init__(self, sync_name: str, driver: Dict[str, Any], pre_commands: List[Any] = None, notify: str = None, frequency: str = None,
                  healthchecks: Dict[str, str] = None):
         self.sync_name = sync_name
         self.frequency = frequency
@@ -222,6 +224,7 @@ class AutoSync:
             self.driver = RsyncDriver(driver['settings'])
         if driver['type'] == 'restic':
             self.driver = ResticDriver(driver['settings'], driver['commands'])
+        self.pre_commands = pre_commands
         self.notify = notifications.Mode(
             notify) if notify else notifications.Mode.AUTO
         self.healthchecks = hc.Healthcheck(
