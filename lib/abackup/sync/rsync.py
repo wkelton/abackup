@@ -85,16 +85,7 @@ def get_stored_path_from_remote(stored_data_name: str, remote: Remote, absync_op
 def do_rsync(origin: str, destination: str, rsync_options: RsyncOptions, log: logging.Logger, sync_name: str = 'manual',
              sync_type: str = 'manual', remote: Remote = None, pull: bool = False):
     command_list = ['rsync', '-az', '--stats', '--info=del', '--info=name']
-    if rsync_options.delete:
-        if rsync_options.max_delete:
-            command_list.extend(
-                ['--delete', "--max-delete={}".format(rsync_options.max_delete)])
-        else:
-            command_list.append('--delete')
-    if rsync_options.copy_unsafe_links:
-        command_list.append('--copy-unsafe-links')
-    if rsync_options.inplace:
-        command_list.extend(['--inplace', '--no-whole-file'])
+    command_list.extend(rsync_options.options_list())
     if remote:
         if remote.ssh_options():
             command_list.extend(

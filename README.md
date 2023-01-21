@@ -175,6 +175,9 @@ owned_data: # optional
           max_delete: 10 # default
           copy_unsafe_links: False # default
           inplace: False # default
+          no_whole_file: False # default
+          backup: False # default
+          custom_str: "" # optional
       - type: restic
         settings:
           global_options: # optional

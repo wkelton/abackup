@@ -1,6 +1,7 @@
 import logging
 import os
 import platform
+import shlex
 import yaml
 
 from typing import Any, Dict, List
@@ -11,21 +12,68 @@ from abackup.restic import PasswordProvider, RepoConnection, RestBackend, Restic
 
 # Rsync
 
+
 class RsyncOptions:
-    def __init__(self, delete: bool = False, max_delete: int = None, copy_unsafe_links: bool = False, inplace: bool = False):
+    def __init__(
+        self,
+        delete: bool = None,
+        max_delete: int = None,
+        copy_unsafe_links: bool = None,
+        inplace: bool = None,
+        no_whole_file: bool = None,
+        backup: bool = None,
+        custom_str: str = None,
+    ):
         self.delete = delete
         self.max_delete = max_delete
         self.copy_unsafe_links = copy_unsafe_links
         self.inplace = inplace
+        self.no_whole_file = no_whole_file
+        self.backup = backup
+        self.custom_str = custom_str
+
+    def __str__(self):
+        return " ".join(self.options_list())
+
+    def options_list(self):
+        options = []
+        if self.delete:
+            options.append("--delete")
+            if self.max_delete:
+                options.append("--max-delete={}".format(self.max_delete))
+        if self.copy_unsafe_links:
+            options.append("--copy-unsafe-links")
+        if self.inplace:
+            options.append("--inplace")
+        if self.no_whole_file:
+            options.append("--no-whole-file")
+        if self.backup:
+            options.append("--backup")
+        if self.custom_str:
+            options.extend(shlex.split(self.custom_str))
+        return options
 
     def mask(self, settings):
         if not settings:
-            return RsyncOptions(self.delete, self.max_delete, self.copy_unsafe_links, self.inplace)
+            return RsyncOptions(
+                self.delete,
+                self.max_delete,
+                self.copy_unsafe_links,
+                self.inplace,
+                self.no_whole_file,
+                self.backup,
+                self.custom_str,
+            )
         else:
-            return RsyncOptions(settings.delete if settings.delete else self.delete,
-                                settings.max_delete if settings.max_delete else self.max_delete,
-                                settings.copy_unsafe_links if settings.copy_unsafe_links else self.copy_unsafe_links,
-                                settings.inplace if settings.inplace else self.inplace)
+            return RsyncOptions(
+                settings.delete if settings.delete is not None else self.delete,
+                settings.max_delete if settings.max_delete is not None else self.max_delete,
+                settings.copy_unsafe_links if settings.copy_unsafe_links is not None else self.copy_unsafe_links,
+                settings.inplace if settings.inplace is not None else self.inplace,
+                settings.no_whole_file if settings.no_whole_file is not None else self.no_whole_file,
+                settings.backup if settings.backup is not None else self.backup,
+                settings.custom_str if settings.custom_str is not None else self.custom_str,
+            )
 
     @staticmethod
     def default():
