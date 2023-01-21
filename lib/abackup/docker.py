@@ -20,7 +20,9 @@ def decompress_file(file_path: str, log: logging.Logger):
 
 
 class BackupFileSettings:
-    def __init__(self, is_single_backup: bool, prefix: str = None, force_timestamp: bool = None, use_compression: bool = True):
+    def __init__(
+        self, is_single_backup: bool, prefix: str = None, force_timestamp: bool = None, use_compression: bool = True
+    ):
         self.is_single_backup = is_single_backup
         self.prefix = prefix
         self.force_timestamp = force_timestamp
@@ -36,7 +38,14 @@ class BackupFileSettings:
 
 
 class BackupFile:
-    def __init__(self, identifier: str, backup_path: str, settings: BackupFileSettings, pre_compress_ext: str, override_file_name: str = None):
+    def __init__(
+        self,
+        identifier: str,
+        backup_path: str,
+        settings: BackupFileSettings,
+        pre_compress_ext: str,
+        override_file_name: str = None,
+    ):
         self.identifier = identifier
         self.backup_path = backup_path
         self.settings = settings
@@ -90,7 +99,9 @@ def construct_backup_file(name: str, backup_path: str, settings: BackupFileSetti
     return BackupFile(name, backup_path, settings, pre_compress_ext)
 
 
-def find_restore_file(backup_filename: str, name: str, backup_path: str, settings: BackupFileSettings, pre_compress_ext: str):
+def find_restore_file(
+    backup_filename: str, name: str, backup_path: str, settings: BackupFileSettings, pre_compress_ext: str
+):
     backup_file = BackupFile(name, backup_path, settings, pre_compress_ext, backup_filename)
     if not backup_file.override_file_name:
         backup_file.override_file_name = fs.find_youngest_file(backup_path, backup_file.prefix, backup_file.extension)
@@ -98,8 +109,16 @@ def find_restore_file(backup_filename: str, name: str, backup_path: str, setting
 
 
 class DockerCommand(Command):
-    def __init__(self, command_string: str, container_name: str, docker_options: List[str],
-                 input: str = None, input_path: str = None, output_path: str = None, in_container: bool = False):
+    def __init__(
+        self,
+        command_string: str,
+        container_name: str,
+        docker_options: List[str],
+        input: str = None,
+        input_path: str = None,
+        output_path: str = None,
+        in_container: bool = False,
+    ):
         self.container_name = container_name
         self.docker_options = docker_options
         self.run_command_in_container = in_container
@@ -113,22 +132,36 @@ class DockerCommand(Command):
         return " ".join(self.docker_options)
 
     def run(self, log: logging.Logger):
-        log.debug("Command::run({}, {}, {}, {}, {})".format(self.container_name, self.command_string,
-                                                            self.formatted_options(), self.run_command_in_container,
-                                                            self.output_path))
+        log.debug(
+            "Command::run({}, {}, {}, {}, {})".format(
+                self.container_name,
+                self.command_string,
+                self.formatted_options(),
+                self.run_command_in_container,
+                self.output_path,
+            )
+        )
         if self.run_command_in_container:
-            command = "{} {} {} sh -c '{}'".format(self.docker_command, self.formatted_options(), self.container_name,
-                                                   self.command_string)
+            command = "{} {} {} sh -c '{}'".format(
+                self.docker_command, self.formatted_options(), self.container_name, self.command_string
+            )
             log.info("Running command in the {} container: {}".format(self.container_name, self.friendly_str()))
         else:
-            command = "{} --volumes-from {} {} ubuntu sh -c '{}'".format(self.docker_command, self.container_name,
-                                                                          self.formatted_options(), self.command_string)
+            command = "{} --volumes-from {} {} ubuntu sh -c '{}'".format(
+                self.docker_command, self.container_name, self.formatted_options(), self.command_string
+            )
             log.info("Running command in a busybox container: {}".format(self.friendly_str()))
         return self._run(command, log)
 
     def new_command(self, command_string: str):
-        dc = DockerCommand(command_string, self.container_name, self.docker_options, self.input_str,
-                           output_path=self.output_path, in_container=self.run_command_in_container)
+        dc = DockerCommand(
+            command_string,
+            self.container_name,
+            self.docker_options,
+            self.input_str,
+            output_path=self.output_path,
+            in_container=self.run_command_in_container,
+        )
         return dc
 
 
@@ -138,14 +171,25 @@ class DockerCommand(Command):
 
 
 class DBBRCommand(DockerCommand):
-    def __init__(self, name: str, db_command: str, backup_path: str, backup_file: BackupFile, container_name: str, docker_options: List[str],
-                 input_path: str = None, output_path: str = None):
+    def __init__(
+        self,
+        name: str,
+        db_command: str,
+        backup_path: str,
+        backup_file: BackupFile,
+        container_name: str,
+        docker_options: List[str],
+        input_path: str = None,
+        output_path: str = None,
+    ):
         self.name = name
         self.db_command = db_command
         self.backup_path = backup_path
         self.backup_file = backup_file
-        d_opts = docker_options + ['-i']
-        super().__init__(db_command, container_name, d_opts, input_path=input_path, output_path=output_path, in_container=True)
+        d_opts = docker_options + ["-i"]
+        super().__init__(
+            db_command, container_name, d_opts, input_path=input_path, output_path=output_path, in_container=True
+        )
 
     @property
     def backup_file_path(self):
@@ -181,12 +225,16 @@ class DBBRCommand(DockerCommand):
 
     def run(self, log: logging.Logger):
         if self.input_path and self.output_path:
-            log.critical("DBBRCommand: input_path and output_path both provided, this is not supported; {}".format(
-                self.db_command))
+            log.critical(
+                "DBBRCommand: input_path and output_path both provided, this is not supported; {}".format(
+                    self.db_command
+                )
+            )
             return False
         if not self.input_path and not self.output_path:
-            log.critical("DBBRCommand: input_path nor output_path provided, this is not supported; {}".format(
-                self.db_command))
+            log.critical(
+                "DBBRCommand: input_path nor output_path provided, this is not supported; {}".format(self.db_command)
+            )
             return False
         if self.output_path:
             return self._run_backup(log)
@@ -196,66 +244,175 @@ class DBBRCommand(DockerCommand):
 
 
 class MySqlBRCommand(DBBRCommand):
-    def __init__(self, name: str, password: str, mysql_command: str, mysql_options: List[str],
-                 backup_path: str, sql_backup_file: BackupFile, container_name: str, docker_options: List[str],
-                 input_path: str = None, output_path: str = None):
+    def __init__(
+        self,
+        name: str,
+        password: str,
+        mysql_command: str,
+        mysql_options: List[str],
+        backup_path: str,
+        sql_backup_file: BackupFile,
+        container_name: str,
+        docker_options: List[str],
+        input_path: str = None,
+        output_path: str = None,
+    ):
         self.mysql_command = mysql_command
-        super().__init__(name, '{} {} -p"{}" {}'.format(mysql_command, " ".join(mysql_options), password, name), backup_path,
-                         sql_backup_file, container_name, docker_options, input_path=input_path, output_path=output_path)
+        super().__init__(
+            name,
+            '{} {} -p"{}" {}'.format(mysql_command, " ".join(mysql_options), password, name),
+            backup_path,
+            sql_backup_file,
+            container_name,
+            docker_options,
+            input_path=input_path,
+            output_path=output_path,
+        )
 
     def friendly_str(self):
         return "{} {}".format(self.mysql_command, self.name)
 
 
 class MysqlBackupCommand(MySqlBRCommand):
-    def __init__(self, name: str, password: str, backup_path: str, settings: BackupFileSettings, container_name: str, docker_options: List[str]):
-        sql_backup_file = construct_backup_file(name, backup_path, settings, 'sql')
-        super().__init__(name, password, 'mysqldump', ['--single-transaction'], backup_path, sql_backup_file, container_name,
-                         docker_options, output_path=sql_backup_file.pre_compression_file_path)
+    def __init__(
+        self,
+        name: str,
+        password: str,
+        backup_path: str,
+        settings: BackupFileSettings,
+        container_name: str,
+        docker_options: List[str],
+    ):
+        sql_backup_file = construct_backup_file(name, backup_path, settings, "sql")
+        super().__init__(
+            name,
+            password,
+            "mysqldump",
+            ["--single-transaction"],
+            backup_path,
+            sql_backup_file,
+            container_name,
+            docker_options,
+            output_path=sql_backup_file.pre_compression_file_path,
+        )
 
 
 class MysqlRestoreCommand(MySqlBRCommand):
-    def __init__(self, name: str, password: str, backup_path: str, settings: BackupFileSettings, container_name: str, docker_options: List[str],
-                 backup_filename: str = None):
-        sql_backup_file = find_restore_file(backup_filename, name, backup_path, settings, 'sql')
-        super().__init__(name, password, 'mysql', [], backup_path, sql_backup_file, container_name, docker_options,
-                         input_path=sql_backup_file.pre_compression_file_path)
+    def __init__(
+        self,
+        name: str,
+        password: str,
+        backup_path: str,
+        settings: BackupFileSettings,
+        container_name: str,
+        docker_options: List[str],
+        backup_filename: str = None,
+    ):
+        sql_backup_file = find_restore_file(backup_filename, name, backup_path, settings, "sql")
+        super().__init__(
+            name,
+            password,
+            "mysql",
+            [],
+            backup_path,
+            sql_backup_file,
+            container_name,
+            docker_options,
+            input_path=sql_backup_file.pre_compression_file_path,
+        )
 
 
 class PostgresBRCommand(DBBRCommand):
-    def __init__(self, name: str, postgres_command: str, postgres_options: List[str], backup_path: str,
-                 sql_backup_file: BackupFile, container_name: str, docker_options: List[str], user: str = None, password: str = None,
-                 input_path: str = None, output_path: str = None):
+    def __init__(
+        self,
+        name: str,
+        postgres_command: str,
+        postgres_options: List[str],
+        backup_path: str,
+        sql_backup_file: BackupFile,
+        container_name: str,
+        docker_options: List[str],
+        user: str = None,
+        password: str = None,
+        input_path: str = None,
+        output_path: str = None,
+    ):
         self.postgres_command = postgres_command
         # TODO: support using 'password'
-        p_opts = postgres_options + ['-U', user] if user else postgres_options
-        super().__init__(name, '{} {}'.format(postgres_command, " ".join(p_opts)), backup_path, sql_backup_file, container_name, docker_options,
-                         input_path=input_path, output_path=output_path)
+        p_opts = postgres_options + ["-U", user] if user else postgres_options
+        super().__init__(
+            name,
+            "{} {}".format(postgres_command, " ".join(p_opts)),
+            backup_path,
+            sql_backup_file,
+            container_name,
+            docker_options,
+            input_path=input_path,
+            output_path=output_path,
+        )
 
     def friendly_str(self):
         return "{} {}".format(self.postgres_command, self.name)
 
 
 class PostgresBackupCommand(PostgresBRCommand):
-    def __init__(self, name: str, backup_path: str, settings: BackupFileSettings, container_name: str, docker_options: List[str], user: str = None,
-                 password: str = None, dump_all: bool = False):
-        postgres_command = 'pg_dump'
-        postgres_options = ['-d', name]
+    def __init__(
+        self,
+        name: str,
+        backup_path: str,
+        settings: BackupFileSettings,
+        container_name: str,
+        docker_options: List[str],
+        user: str = None,
+        password: str = None,
+        dump_all: bool = False,
+    ):
+        postgres_command = "pg_dump"
+        postgres_options = ["-d", name]
         if dump_all:
-            postgres_command = 'pg_dumpall'
+            postgres_command = "pg_dumpall"
             postgres_options = []
-        sql_backup_file = construct_backup_file(name, backup_path, settings, 'sql')
-        super().__init__(name, postgres_command, postgres_options, backup_path, sql_backup_file, container_name, docker_options, user,
-                         password, output_path=sql_backup_file.pre_compression_file_path)
+        sql_backup_file = construct_backup_file(name, backup_path, settings, "sql")
+        super().__init__(
+            name,
+            postgres_command,
+            postgres_options,
+            backup_path,
+            sql_backup_file,
+            container_name,
+            docker_options,
+            user,
+            password,
+            output_path=sql_backup_file.pre_compression_file_path,
+        )
 
 
 class PostgresRestoreCommand(PostgresBRCommand):
-    def __init__(self, name: str, backup_path: str, settings: BackupFileSettings, container_name: str, docker_options: List[str], user: str,
-                 password: str, restore_all: bool = False, backup_filename: str = None):
-        sql_backup_file = find_restore_file(backup_filename, name, backup_path, settings, 'sql')
-        super().__init__(name, 'psql', ['-d', 'postgres'] if restore_all else ['-d', name], backup_path,
-                         sql_backup_file, container_name, docker_options, user, password,
-                         input_path=sql_backup_file.pre_compression_file_path)
+    def __init__(
+        self,
+        name: str,
+        backup_path: str,
+        settings: BackupFileSettings,
+        container_name: str,
+        docker_options: List[str],
+        user: str,
+        password: str,
+        restore_all: bool = False,
+        backup_filename: str = None,
+    ):
+        sql_backup_file = find_restore_file(backup_filename, name, backup_path, settings, "sql")
+        super().__init__(
+            name,
+            "psql",
+            ["-d", "postgres"] if restore_all else ["-d", name],
+            backup_path,
+            sql_backup_file,
+            container_name,
+            docker_options,
+            user,
+            password,
+            input_path=sql_backup_file.pre_compression_file_path,
+        )
 
 
 #######################################################################################################################
@@ -264,16 +421,27 @@ class PostgresRestoreCommand(PostgresBRCommand):
 
 
 class TarBackupSettings(BackupFileSettings):
-    def __init__(self, is_single_backup: bool, prefix: str = None, force_timestamp: bool = None, use_compression: bool = True):
+    def __init__(
+        self, is_single_backup: bool, prefix: str = None, force_timestamp: bool = None, use_compression: bool = True
+    ):
         super().__init__(is_single_backup, prefix, force_timestamp, use_compression)
 
 
 class BackupTarFile(BackupFile):
-    def __init__(self, identifier: str, source_dir_in_container: str, dest_dir_in_container: str, dest_dir_on_host: str, settings: TarBackupSettings, backup_path: str, override_file_name: str = None):
+    def __init__(
+        self,
+        identifier: str,
+        source_dir_in_container: str,
+        dest_dir_in_container: str,
+        dest_dir_on_host: str,
+        settings: TarBackupSettings,
+        backup_path: str,
+        override_file_name: str = None,
+    ):
         self.source_dir_in_container = source_dir_in_container
         self.dest_dir_in_container = dest_dir_in_container
         self.dest_dir_on_host = dest_dir_on_host
-        super().__init__(identifier, backup_path, settings, 'tar', override_file_name)
+        super().__init__(identifier, backup_path, settings, "tar", override_file_name)
 
     @property
     def container_file_path(self):
@@ -292,34 +460,54 @@ class BackupTarFile(BackupFile):
         return "tar -xzf {}".format(self.container_file_path)
 
 
-def construct_backup_tar_file_for_create(directory: str, container_dir: str, host_tmp_dir: str, settings: TarBackupSettings, backup_path: str):
+def construct_backup_tar_file_for_create(
+    directory: str, container_dir: str, host_tmp_dir: str, settings: TarBackupSettings, backup_path: str
+):
     return BackupTarFile(os.path.basename(directory), directory, container_dir, host_tmp_dir, settings, backup_path)
 
 
-def find_backup_tar_file_for_extract(tar_name: str, directory: str, container_dir: str, host_tmp_dir: str, settings: TarBackupSettings, backup_path: str):
-    backup_tar_file = BackupTarFile(os.path.basename(directory), directory, container_dir, host_tmp_dir, settings, backup_path, tar_name)
+def find_backup_tar_file_for_extract(
+    tar_name: str, directory: str, container_dir: str, host_tmp_dir: str, settings: TarBackupSettings, backup_path: str
+):
+    backup_tar_file = BackupTarFile(
+        os.path.basename(directory), directory, container_dir, host_tmp_dir, settings, backup_path, tar_name
+    )
     if not backup_tar_file.override_file_name:
-        backup_tar_file.override_file_name = fs.find_youngest_file(backup_path, backup_tar_file.prefix, backup_tar_file.extension)
+        backup_tar_file.override_file_name = fs.find_youngest_file(
+            backup_path, backup_tar_file.prefix, backup_tar_file.extension
+        )
     return backup_tar_file
 
 
 def get_new_host_tmp_dir():
-    return os.path.join(os.getcwd(), '.abackup-tmp', str(uuid.uuid4()))
+    return os.path.join(os.getcwd(), ".abackup-tmp", str(uuid.uuid4()))
 
 
 class DirectoryTarCommand(DockerCommand):
-    def __init__(self, directory: str, backup_path: str, backup_tar_file: BackupTarFile, tar_command: str, container_name: str, docker_options: List[str]):
+    def __init__(
+        self,
+        directory: str,
+        backup_path: str,
+        backup_tar_file: BackupTarFile,
+        tar_command: str,
+        container_name: str,
+        docker_options: List[str],
+    ):
         self.name = backup_tar_file.identifier
         self.directory = directory
         self.backup_path = backup_path
         self.backup_tar_file = backup_tar_file
 
-        d_opts = docker_options + ['--rm', '-v', "{}:{}".format(self.backup_tar_file.dest_dir_on_host, DirectoryTarCommand.default_container_dir())]
+        d_opts = docker_options + [
+            "--rm",
+            "-v",
+            "{}:{}".format(self.backup_tar_file.dest_dir_on_host, DirectoryTarCommand.default_container_dir()),
+        ]
         super().__init__(tar_command, container_name, d_opts)
 
     @classmethod
     def default_container_dir(cls):
-        return '/abackup'
+        return "/abackup"
 
     @property
     def backup_file_path(self):
@@ -338,39 +526,82 @@ class DirectoryTarCommand(DockerCommand):
 
 
 class DirectoryTarBackupCommand(DirectoryTarCommand):
-    def __init__(self, directory: str, backup_path: str, tar_settings: TarBackupSettings, container_name: str, docker_options: List[str]):
+    def __init__(
+        self,
+        directory: str,
+        backup_path: str,
+        tar_settings: TarBackupSettings,
+        container_name: str,
+        docker_options: List[str],
+    ):
         backup_tar_file = construct_backup_tar_file_for_create(
-            directory, DirectoryTarCommand.default_container_dir(), get_new_host_tmp_dir(), tar_settings, backup_path)
-        super().__init__(directory, backup_path, backup_tar_file,
-                         backup_tar_file.command_create_str_in_container, container_name, docker_options)
+            directory, DirectoryTarCommand.default_container_dir(), get_new_host_tmp_dir(), tar_settings, backup_path
+        )
+        super().__init__(
+            directory,
+            backup_path,
+            backup_tar_file,
+            backup_tar_file.command_create_str_in_container,
+            container_name,
+            docker_options,
+        )
 
     def run(self, log: logging.Logger):
         os.makedirs(self.backup_tar_file.dest_dir_on_host)
-        copy_temp_file_from_host_command = Command("cp {} {}".format(self.backup_tar_file.host_file_path, self.backup_file_path))
-        delete_temp_file_from_container_command = self.new_command("rm {}".format(self.backup_tar_file.container_file_path))
+        copy_temp_file_from_host_command = Command(
+            "cp {} {}".format(self.backup_tar_file.host_file_path, self.backup_file_path)
+        )
+        delete_temp_file_from_container_command = self.new_command(
+            "rm {}".format(self.backup_tar_file.container_file_path)
+        )
         delete_temp_dir_from_host_command = Command("rm -rf {}".format(self.backup_tar_file.dest_dir_on_host))
-        return super().run(log) \
-            and copy_temp_file_from_host_command.run(log) \
-            and delete_temp_file_from_container_command.run(log) \
+        return (
+            super().run(log)
+            and copy_temp_file_from_host_command.run(log)
+            and delete_temp_file_from_container_command.run(log)
             and delete_temp_dir_from_host_command.run(log)
+        )
 
 
 class DirectoryTarRestoreCommand(DirectoryTarCommand):
-    def __init__(self, directory: str, backup_path: str, tar_settings: TarBackupSettings, container_name: str, docker_options: List[str],
-                 tar_name: str = None):
+    def __init__(
+        self,
+        directory: str,
+        backup_path: str,
+        tar_settings: TarBackupSettings,
+        container_name: str,
+        docker_options: List[str],
+        tar_name: str = None,
+    ):
         backup_tar_file = find_backup_tar_file_for_extract(
-            tar_name, directory, DirectoryTarCommand.default_container_dir(), get_new_host_tmp_dir(), tar_settings, backup_path)
-        super().__init__(directory, backup_path, backup_tar_file,
-                         backup_tar_file.command_extract_str_in_container, container_name, docker_options)
+            tar_name,
+            directory,
+            DirectoryTarCommand.default_container_dir(),
+            get_new_host_tmp_dir(),
+            tar_settings,
+            backup_path,
+        )
+        super().__init__(
+            directory,
+            backup_path,
+            backup_tar_file,
+            backup_tar_file.command_extract_str_in_container,
+            container_name,
+            docker_options,
+        )
 
     def run(self, log: logging.Logger):
         os.makedirs(self.backup_tar_file.dest_dir_on_host)
-        copy_backup_file_from_host_command = Command("cp {} {}".format(self.backup_file_path, self.backup_tar_file.host_file_path))
+        copy_backup_file_from_host_command = Command(
+            "cp {} {}".format(self.backup_file_path, self.backup_tar_file.host_file_path)
+        )
         chmod_temp_file_from_host_command = Command("chmod o+r {}".format(self.backup_tar_file.host_file_path))
         delete_temp_file_from_host_command = Command("rm {}".format(self.backup_tar_file.host_file_path))
         delete_temp_dir_from_host_command = Command("rm -rf {}".format(self.backup_tar_file.dest_dir_on_host))
-        return copy_backup_file_from_host_command.run(log) \
-            and chmod_temp_file_from_host_command.run(log) \
-            and super().run(log) \
-            and delete_temp_file_from_host_command.run(log) \
+        return (
+            copy_backup_file_from_host_command.run(log)
+            and chmod_temp_file_from_host_command.run(log)
+            and super().run(log)
+            and delete_temp_file_from_host_command.run(log)
             and delete_temp_dir_from_host_command.run(log)
+        )

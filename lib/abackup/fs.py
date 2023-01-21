@@ -14,33 +14,34 @@ def ensure_dir_exists(path: str):
     return True
 
 
-def find_files(path: str, prefix: str, extension: str = ''):
+def find_files(path: str, prefix: str, extension: str = ""):
     if not os.path.isdir(path):
         return []
-    return [filename for filename in next(os.walk(path))[2]
-            if filename.startswith(prefix) and filename.endswith(extension)]
+    return [
+        filename for filename in next(os.walk(path))[2] if filename.startswith(prefix) and filename.endswith(extension)
+    ]
 
 
-def find_youngest_file(path: str, prefix: str, extension: str = ''):
+def find_youngest_file(path: str, prefix: str, extension: str = ""):
     filenames = find_files(path, prefix, extension)
     return max(filenames, key=lambda fn: os.stat(os.path.join(path, fn)).st_mtime) if filenames else None
 
 
-def find_oldest_file(path: str, prefix: str, extension: str = ''):
+def find_oldest_file(path: str, prefix: str, extension: str = ""):
     filenames = find_files(path, prefix, extension)
     return min(filenames, key=lambda fn: os.stat(os.path.join(path, fn)).st_mtime) if filenames else None
 
 
-def to_human_readable(num: float, prefix: str = '', suffix: str = 'B'):
+def to_human_readable(num: float, prefix: str = "", suffix: str = "B"):
     start = False
-    for unit in ['', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi']:
+    for unit in ["", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"]:
         start = start or prefix == unit
         if not start:
             continue
         if abs(num) < 1024.0:
             return "%3.2f %s%s" % (num, unit, suffix)
         num /= 1024.0
-    return "%.3f %s%s" % (num, 'Yi', suffix)
+    return "%.3f %s%s" % (num, "Yi", suffix)
 
 
 class FSStats:
@@ -64,7 +65,7 @@ def get_fs_stats(path: str):
 
 
 def get_total_size(path: str, log: logging.Logger = None):
-    command_list = ['du', '-s', path]
+    command_list = ["du", "-s", path]
     if log:
         log.debug("Getting dir size: {}".format(" ".join(command_list)))
     run_out = subprocess.run(command_list, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
@@ -97,8 +98,16 @@ class DriveStatus:
 
 
 class PoolStatus:
-    def __init__(self, pool: str, path: str, state: PoolState, drive_status: List[DriveStatus],
-                 total_size: float, used: float, message: str = None):
+    def __init__(
+        self,
+        pool: str,
+        path: str,
+        state: PoolState,
+        drive_status: List[DriveStatus],
+        total_size: float,
+        used: float,
+        message: str = None,
+    ):
         self.pool = pool
         self.path = path
         self.state = state
@@ -108,10 +117,14 @@ class PoolStatus:
         self.used = used
 
     def __str__(self):
-        return "PoolStatus: {} ({}) -{}- {:.2%} used\n\t{}{}".format(self.pool, self.path, self.state.name,
-                                                                     self.utilization,
-                                                                     "\n\t".join([str(ds) for ds in self.drive_status]),
-                                                                     "\n\t" + self.message if self.message else "")
+        return "PoolStatus: {} ({}) -{}- {:.2%} used\n\t{}{}".format(
+            self.pool,
+            self.path,
+            self.state.name,
+            self.utilization,
+            "\n\t".join([str(ds) for ds in self.drive_status]),
+            "\n\t" + self.message if self.message else "",
+        )
 
     @property
     def available(self):

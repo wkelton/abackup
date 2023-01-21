@@ -19,8 +19,7 @@ class PasswordProvider:
             return '--password-file "{}"'.format(self.arg)
         if self.type == "command":
             return '--password-command "{}"'.format(self.arg)
-        log.critical(
-            "PasswordProvider::to_restic_option(): unknown password provider type: {}".format(self.type))
+        log.critical("PasswordProvider::to_restic_option(): unknown password provider type: {}".format(self.type))
         raise TypeError("unknown password provider type: {}".format(self.type))
 
     def to_string(self, log: logging.Logger):
@@ -28,15 +27,16 @@ class PasswordProvider:
             with open(self.arg, "r") as pass_file:
                 return pass_file.readline().rstrip()
         if self.type == "command":
-            command_result = Command(
-                self.arg, universal_newlines=True).run_with_result(log)
+            command_result = Command(self.arg, universal_newlines=True).run_with_result(log)
             if command_result.returncode != 0:
-                log.critical("PasswordProvider::to_string(): failed to run password command! {}".format(
-                    command_result.stderr.decode()))
+                log.critical(
+                    "PasswordProvider::to_string(): failed to run password command! {}".format(
+                        command_result.stderr.decode()
+                    )
+                )
             command_result.check_returncode()
             return command_result.stdout.decode().rstrip()
-        log.critical(
-            "PasswordProvider::to_string(): unknown password provider type: {}".format(self.type))
+        log.critical("PasswordProvider::to_string(): unknown password provider type: {}".format(self.type))
         raise TypeError("unknown password provider type: {}".format(self.type))
 
 
@@ -49,12 +49,19 @@ class RepoConnection:
         return self._repo_string
 
     def disable_status_updates(self):
-        self.env['RESTIC_PROGRESS_FPS'] = 0.0000000001
+        self.env["RESTIC_PROGRESS_FPS"] = 0.0000000001
 
 
 class RestBackend(RepoConnection):
-    def __init__(self, user: str, password_provider: PasswordProvider, host: str, path: str, port: str = None,
-                 env: Dict[str, str] = None):
+    def __init__(
+        self,
+        user: str,
+        password_provider: PasswordProvider,
+        host: str,
+        path: str,
+        port: str = None,
+        env: Dict[str, str] = None,
+    ):
         self.user = user
         self.password_provider = password_provider
         self.host = host
@@ -64,7 +71,9 @@ class RestBackend(RepoConnection):
 
     def repo_string(self, log: logging.Logger):
         if self.port:
-            return "rest:https://{}:{}@{}:{}/{}".format(self.user, self.password_provider.to_string(log), self.host, self.port, self.path)
+            return "rest:https://{}:{}@{}:{}/{}".format(
+                self.user, self.password_provider.to_string(log), self.host, self.port, self.path
+            )
         return "rest:https://{}:{}@{}/{}".format(self.user, self.password_provider.to_string(log), self.host, self.path)
 
 
@@ -91,9 +100,23 @@ class ResticResult:
 
 
 class BackupResult(ResticResult):
-    def __init__(self, files_new: int, files_changed: int, files_unmodified: int, dirs_new: int, dirs_changed: int,
-                 dirs_unmodified: int, data_blobs: int, tree_blobs: int, data_added: int, total_files_processed: int,
-                 total_bytes_processed: int, total_duration: float, snapshot_id: str, command_succeeded: bool):
+    def __init__(
+        self,
+        files_new: int,
+        files_changed: int,
+        files_unmodified: int,
+        dirs_new: int,
+        dirs_changed: int,
+        dirs_unmodified: int,
+        data_blobs: int,
+        tree_blobs: int,
+        data_added: int,
+        total_files_processed: int,
+        total_bytes_processed: int,
+        total_duration: float,
+        snapshot_id: str,
+        command_succeeded: bool,
+    ):
         self.files_new = files_new
         self.files_changed = files_changed
         self.files_unmodified = files_unmodified
@@ -107,44 +130,46 @@ class BackupResult(ResticResult):
         self.total_bytes_processed = total_bytes_processed
         self.total_duration = total_duration
         self.snapshot_id = snapshot_id
-        super().__init__('backup', command_succeeded)
+        super().__init__("backup", command_succeeded)
 
     @classmethod
     def from_output(cls, completed_process: CompletedProcess, log: logging.Logger):
         if completed_process.returncode != 0:
             log.debug("BackupResult::from_output({})".format(completed_process))
-            return ResticResult.from_output('backup', completed_process, log)
+            return ResticResult.from_output("backup", completed_process, log)
 
-        lines = completed_process.stdout.split('\n')
+        lines = completed_process.stdout.split("\n")
         for line in lines:
-            if not line.startswith('{'):
+            if not line.startswith("{"):
                 continue
             json_dict = json.loads(line)
 
             def _get_field(key: str, default=None):
                 return json_dict[key] if key in json_dict else default
+
             if _get_field("message_type") == "summary":
-                return cls(_get_field("files_new"),
-                           _get_field("files_changed"),
-                           _get_field("files_unmodified"),
-                           _get_field("dirs_new"),
-                           _get_field("dirs_changed"),
-                           _get_field("dirs_unmodified"),
-                           _get_field("data_blobs"),
-                           _get_field("tree_blobs"),
-                           _get_field("data_added"),
-                           _get_field("total_files_processed"),
-                           _get_field("total_bytes_processed"),
-                           _get_field("total_duration"),
-                           _get_field("snapshot_id"),
-                           True
-                           )
+                return cls(
+                    _get_field("files_new"),
+                    _get_field("files_changed"),
+                    _get_field("files_unmodified"),
+                    _get_field("dirs_new"),
+                    _get_field("dirs_changed"),
+                    _get_field("dirs_unmodified"),
+                    _get_field("data_blobs"),
+                    _get_field("tree_blobs"),
+                    _get_field("data_added"),
+                    _get_field("total_files_processed"),
+                    _get_field("total_bytes_processed"),
+                    _get_field("total_duration"),
+                    _get_field("snapshot_id"),
+                    True,
+                )
         return None
 
 
 class CheckResult(ResticResult):
     def __init__(self, command_succeeded: bool, stderr: str = None, stdout: str = None):
-        super().__init__('check', command_succeeded, stderr, stdout)
+        super().__init__("check", command_succeeded, stderr, stdout)
 
     @classmethod
     def from_output(cls, completed_process: CompletedProcess, log: logging.Logger):
@@ -154,53 +179,66 @@ class CheckResult(ResticResult):
 class ForgetResult(ResticResult):
     def __init__(self, remove_entries: List[Dict[str, Any]], command_succeeded: bool):
         self.remove_entries = remove_entries
-        super().__init__('forget', command_succeeded)
+        super().__init__("forget", command_succeeded)
 
     @classmethod
     def from_output(cls, completed_process: CompletedProcess, log: logging.Logger):
         if completed_process.returncode != 0:
-            return ResticResult.from_output('forget', completed_process, log)
+            return ResticResult.from_output("forget", completed_process, log)
 
         remove_entries = []
 
         # there should only be one line
-        lines = completed_process.stdout.split('\n')
+        lines = completed_process.stdout.split("\n")
         for line in lines:
-            if not line.startswith('{'):
+            if not line.startswith("{"):
                 continue
             json_list = json.loads(line)
             if len(json_list) > 1:
-                raise RuntimeError(
-                    "too many elements in json output of forget command")
+                raise RuntimeError("too many elements in json output of forget command")
             json_dict = json_list[0]
-            remove_list = json_dict['remove']
+            remove_list = json_dict["remove"]
             for remove in remove_list:
+
                 def _get_field(key: str, default=None):
                     return remove[key] if key in remove else default
-                remove_entries.append({'snapshot_id': _get_field('short_id'),
-                                       'time': _get_field('time'),
-                                       'paths': _get_field('paths'),
-                                       'tags': _get_field('tags'),
-                                       'hostname': _get_field('hostname')})
+
+                remove_entries.append(
+                    {
+                        "snapshot_id": _get_field("short_id"),
+                        "time": _get_field("time"),
+                        "paths": _get_field("paths"),
+                        "tags": _get_field("tags"),
+                        "hostname": _get_field("hostname"),
+                    }
+                )
 
         return cls(remove_entries, True)
 
 
 class PruneResult(ResticResult):
-    def __init__(self, to_repack: str, this_removes: str, to_delete: str, total_prune: str, remaining: str,
-                 unused_size_after_prune: str, command_succeeded: bool):
+    def __init__(
+        self,
+        to_repack: str,
+        this_removes: str,
+        to_delete: str,
+        total_prune: str,
+        remaining: str,
+        unused_size_after_prune: str,
+        command_succeeded: bool,
+    ):
         self.to_repack = to_repack
         self.this_removes = this_removes
         self.to_delete = to_delete
         self.total_prune = total_prune
         self.remaining = remaining
         self.unused_size_after_prune = unused_size_after_prune
-        super().__init__('prune', command_succeeded)
+        super().__init__("prune", command_succeeded)
 
     @classmethod
     def from_output(cls, completed_process: CompletedProcess, log: logging.Logger):
         if completed_process.returncode != 0:
-            return ResticResult.from_output('prune', completed_process, log)
+            return ResticResult.from_output("prune", completed_process, log)
 
         to_repack = None
         this_removes = None
@@ -243,9 +281,18 @@ class ResticWrapper:
         self.password_provider = password_provider
         self.connection = connection
 
-    def _run_command(self, command: str, log: logging.Logger, global_options: Dict[str, Any] = None,
-                     options: Dict[str, Any] = None, args: List[str] = None, input: str = None, input_path: str = None,
-                     output_path: str = None, universal_newlines: bool = None):
+    def _run_command(
+        self,
+        command: str,
+        log: logging.Logger,
+        global_options: Dict[str, Any] = None,
+        options: Dict[str, Any] = None,
+        args: List[str] = None,
+        input: str = None,
+        input_path: str = None,
+        output_path: str = None,
+        universal_newlines: bool = None,
+    ):
         def dict_to_options_string(d: Dict[str, Any]):
             options_string = ""
             if d != None:
@@ -255,13 +302,14 @@ class ResticWrapper:
                     elif v is True:
                         options_string += "--{} ".format(k)
                     elif isinstance(v, list):
-                        if k == 'tags':
-                            options_string += "--{} {} ".format('tag', ','.join(v))
+                        if k == "tags":
+                            options_string += "--{} {} ".format("tag", ",".join(v))
                         else:
-                            options_string += "--{} {} ".format(k, ','.join(v))
+                            options_string += "--{} {} ".format(k, ",".join(v))
                     else:
                         options_string += "--{} {} ".format(k, v)
             return options_string
+
         global_options_string = dict_to_options_string(global_options)
         options_string = dict_to_options_string(options)
 
@@ -270,40 +318,94 @@ class ResticWrapper:
         else:
             args_string = " ".join(args)
 
-        log.debug("ResticWrapper::_run_command({}, {}, {}, {}, {}, {}, {}):".format(
-            command, global_options_string, options_string, args_string, input is None, input_path, output_path))
+        log.debug(
+            "ResticWrapper::_run_command({}, {}, {}, {}, {}, {}, {}):".format(
+                command, global_options_string, options_string, args_string, input is None, input_path, output_path
+            )
+        )
 
-        command_string = "restic -r {} {} {} {} {} {}".format(self.connection.repo_string(
-            log), self.password_provider.to_restic_option(log), global_options_string, command, options_string,
-            args_string)
+        command_string = "restic -r {} {} {} {} {} {}".format(
+            self.connection.repo_string(log),
+            self.password_provider.to_restic_option(log),
+            global_options_string,
+            command,
+            options_string,
+            args_string,
+        )
 
         return Command(command_string, input, input_path, output_path, universal_newlines).run_with_result(log)
 
-    def run_command(self, command: str, log: logging.Logger, global_options: Dict[str, Any] = None,
-                    options: Dict[str, Any] = None, args: List[str] = None, input: str = None, input_path: str = None,
-                    output_path: str = None, universal_newlines: bool = None):
-        return ResticResult.from_output(self.run_command(command, log, global_options, options, args=args, input=input,
-                                                         input_path=input_path, output_path=output_path,
-                                                         universal_newlines=universal_newlines), log)
+    def run_command(
+        self,
+        command: str,
+        log: logging.Logger,
+        global_options: Dict[str, Any] = None,
+        options: Dict[str, Any] = None,
+        args: List[str] = None,
+        input: str = None,
+        input_path: str = None,
+        output_path: str = None,
+        universal_newlines: bool = None,
+    ):
+        return ResticResult.from_output(
+            self.run_command(
+                command,
+                log,
+                global_options,
+                options,
+                args=args,
+                input=input,
+                input_path=input_path,
+                output_path=output_path,
+                universal_newlines=universal_newlines,
+            ),
+            log,
+        )
 
-    def backup(self, log: logging.Logger, global_options: Dict[str, Any] = None, options: Dict[str, Any] = None,
-               args: List[str] = None, input: str = None, input_path: str = None):
+    def backup(
+        self,
+        log: logging.Logger,
+        global_options: Dict[str, Any] = None,
+        options: Dict[str, Any] = None,
+        args: List[str] = None,
+        input: str = None,
+        input_path: str = None,
+    ):
         log.debug("ResticWrapper::backup()")
-        return BackupResult.from_output(self._run_command('backup', log, global_options, options, args=args, input=input,
-                                                          input_path=input_path, universal_newlines=True), log)
+        return BackupResult.from_output(
+            self._run_command(
+                "backup",
+                log,
+                global_options,
+                options,
+                args=args,
+                input=input,
+                input_path=input_path,
+                universal_newlines=True,
+            ),
+            log,
+        )
 
     def check(self, log: logging.Logger, global_options: Dict[str, Any] = None, options: Dict[str, Any] = None):
         log.debug("ResticWrapper::check()")
-        return CheckResult.from_output(self._run_command('check', log, global_options, options, universal_newlines=True),
-                                       log)
+        return CheckResult.from_output(
+            self._run_command("check", log, global_options, options, universal_newlines=True), log
+        )
 
-    def forget(self, log: logging.Logger, global_options: Dict[str, Any] = None, options: Dict[str, Any] = None,
-               args: List[str] = None):
+    def forget(
+        self,
+        log: logging.Logger,
+        global_options: Dict[str, Any] = None,
+        options: Dict[str, Any] = None,
+        args: List[str] = None,
+    ):
         log.debug("ResticWrapper::forget()")
-        return ForgetResult.from_output(self._run_command('forget', log, global_options, options, args=args,
-                                                          universal_newlines=True), log)
+        return ForgetResult.from_output(
+            self._run_command("forget", log, global_options, options, args=args, universal_newlines=True), log
+        )
 
     def prune(self, log: logging.Logger, global_options: Dict[str, Any] = None, options: Dict[str, Any] = None):
         log.debug("ResticWrapper::prune()")
-        return PruneResult.from_output(self._run_command('prune', log, global_options, options, universal_newlines=True),
-                                       log)
+        return PruneResult.from_output(
+            self._run_command("prune", log, global_options, options, universal_newlines=True), log
+        )

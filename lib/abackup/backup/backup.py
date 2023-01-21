@@ -11,7 +11,14 @@ from abackup.backup import Config
 from abackup.backup.project import Container
 
 
-def get_backups(config: Config, project_name: str, containers: List[Container], only_most_recent: bool, log: logging.Logger, only_identifier: str = None):
+def get_backups(
+    config: Config,
+    project_name: str,
+    containers: List[Container],
+    only_most_recent: bool,
+    log: logging.Logger,
+    only_identifier: str = None,
+):
     backup_paths = []
     for container in containers:
         if not container.backup:
@@ -20,7 +27,9 @@ def get_backups(config: Config, project_name: str, containers: List[Container], 
 
         backup_path = config.get_backup_path(project_name, container.name)
 
-        for command in container.build_directory_backup_commands(backup_path) + container.build_database_backup_commands(backup_path):
+        for command in container.build_directory_backup_commands(
+            backup_path
+        ) + container.build_database_backup_commands(backup_path):
             if only_identifier and command.name != only_identifier:
                 log.info("skipping {}".format(container.name))
                 continue
@@ -41,12 +50,20 @@ def get_backups(config: Config, project_name: str, containers: List[Container], 
     return backup_paths
 
 
-def notify_or_log(notifier: notifications.SlackNotifier, container_name: str, successful_commands: List[str],
-                  failed_commands: List[str], notify_mode: notifications.Mode, log: logging.Logger,
-                  frame_info: Traceback):
-    log.debug("notify_or_log({}, successful:{}, failed:{}, {})".format(container_name,
-                                                                       len(successful_commands), len(failed_commands),
-                                                                       notify_mode.name))
+def notify_or_log(
+    notifier: notifications.SlackNotifier,
+    container_name: str,
+    successful_commands: List[str],
+    failed_commands: List[str],
+    notify_mode: notifications.Mode,
+    log: logging.Logger,
+    frame_info: Traceback,
+):
+    log.debug(
+        "notify_or_log({}, successful:{}, failed:{}, {})".format(
+            container_name, len(successful_commands), len(failed_commands), notify_mode.name
+        )
+    )
 
     failed = len(failed_commands) > 0
     do_notify = notify_mode == notifications.Mode.ALWAYS or (notify_mode == notifications.Mode.AUTO and failed)
@@ -54,10 +71,15 @@ def notify_or_log(notifier: notifications.SlackNotifier, container_name: str, su
     if not notifier:
         log.debug(
             "notify_or_log({}, successful:{}, failed:{}, {}): skipping notify (because no notifier was supplied)".format(
-                container_name, len(successful_commands), len(failed_commands), notify_mode.name))
+                container_name, len(successful_commands), len(failed_commands), notify_mode.name
+            )
+        )
     elif do_notify:
-        log.info("Sending notifications for {}:{} {}".format(container_name,
-                                                             "FAILURE" if failed else "SUCCESS", notify_mode.name))
+        log.info(
+            "Sending notifications for {}:{} {}".format(
+                container_name, "FAILURE" if failed else "SUCCESS", notify_mode.name
+            )
+        )
         if failed:
             severity = notifications.Severity.ERROR
             title = "Failed to Backup {} ".format(container_name)
@@ -69,17 +91,33 @@ def notify_or_log(notifier: notifications.SlackNotifier, container_name: str, su
             fields["Successful"] = "\n".join(successful_commands)
         if failed_commands:
             fields["Failure"] = "\n".join(failed_commands)
-        response = notifier.notify(title, severity, fields=fields, file_name=os.path.basename(frame_info.filename),
-                                   line_number=frame_info.lineno, time=datetime.datetime.now().timestamp())
+        response = notifier.notify(
+            title,
+            severity,
+            fields=fields,
+            file_name=os.path.basename(frame_info.filename),
+            line_number=frame_info.lineno,
+            time=datetime.datetime.now().timestamp(),
+        )
         if response.is_error():
             log.error("Error during notify: code: {} message: {}".format(response.code, response.message))
         else:
-            log.debug("notify_or_log({}, successful:{}, failed:{}, {}): notify successful: code: {} message: {}".format(
-                container_name, len(successful_commands), len(failed_commands), notify_mode.name,
-                response.code, response.message))
+            log.debug(
+                "notify_or_log({}, successful:{}, failed:{}, {}): notify successful: code: {} message: {}".format(
+                    container_name,
+                    len(successful_commands),
+                    len(failed_commands),
+                    notify_mode.name,
+                    response.code,
+                    response.message,
+                )
+            )
     else:
-        log.debug("notify_or_log({}, successful:{}, failed:{}, {}): skipping notify".format(
-            container_name, len(successful_commands), len(failed_commands), notify_mode.name))
+        log.debug(
+            "notify_or_log({}, successful:{}, failed:{}, {}): skipping notify".format(
+                container_name, len(successful_commands), len(failed_commands), notify_mode.name
+            )
+        )
 
 
 def remove_backup(count: int, path: str, prefix: str, extension: str = None, log: logging.Logger = None):
@@ -90,8 +128,14 @@ def remove_backup(count: int, path: str, prefix: str, extension: str = None, log
             log.info("removed previous backup")
 
 
-def perform_backup(config: Config, project_name: str, containers: List[Container],
-                   notify_mode: notifications.Mode, log: logging.Logger, do_healthchecks: bool = True):
+def perform_backup(
+    config: Config,
+    project_name: str,
+    containers: List[Container],
+    notify_mode: notifications.Mode,
+    log: logging.Logger,
+    do_healthchecks: bool = True,
+):
     success = True
     for container in containers:
         log.info(container.name)
@@ -100,8 +144,14 @@ def perform_backup(config: Config, project_name: str, containers: List[Container
             continue
 
         if do_healthchecks and container.backup.healthchecks:
-            hc.perform_healthcheck_start(config.default_healthcheck, container.backup.healthchecks, container.name,
-                                         config.notifier, notify_mode, log)
+            hc.perform_healthcheck_start(
+                config.default_healthcheck,
+                container.backup.healthchecks,
+                container.name,
+                config.notifier,
+                notify_mode,
+                log,
+            )
 
         successful_commands = []
         failed_commands = []
@@ -120,8 +170,9 @@ def perform_backup(config: Config, project_name: str, containers: List[Container
             for command in container.build_database_backup_commands(backup_path):
                 if command.run(log):
                     os.chmod(command.backup_file_path, config.file_permissions)
-                    remove_backup(container.backup.version_count, backup_path, command.file_prefix,
-                                  command.file_extension, log)
+                    remove_backup(
+                        container.backup.version_count, backup_path, command.file_prefix, command.file_extension, log
+                    )
                     successful_commands.append(command.friendly_str())
                 else:
                     log.error("failed running database backup for {}".format(command.name))
@@ -129,8 +180,9 @@ def perform_backup(config: Config, project_name: str, containers: List[Container
             for command in container.build_directory_backup_commands(backup_path):
                 if command.run(log):
                     os.chmod(command.backup_file_path, config.file_permissions)
-                    remove_backup(container.backup.version_count, backup_path, command.file_prefix,
-                                  command.file_extension, log)
+                    remove_backup(
+                        container.backup.version_count, backup_path, command.file_prefix, command.file_extension, log
+                    )
                     successful_commands.append(command.friendly_str())
                 else:
                     log.error("failed running directory backup for {}".format(command.directory))
@@ -145,21 +197,41 @@ def perform_backup(config: Config, project_name: str, containers: List[Container
 
         backup_failed = len(failed_commands) > 0
 
-        notify_or_log(config.notifier, container.name, successful_commands, failed_commands, notify_mode, log,
-                      getframeinfo(currentframe()))
+        notify_or_log(
+            config.notifier,
+            container.name,
+            successful_commands,
+            failed_commands,
+            notify_mode,
+            log,
+            getframeinfo(currentframe()),
+        )
 
         if do_healthchecks and container.backup.healthchecks:
-            hc.perform_healthcheck(config.default_healthcheck, container.backup.healthchecks, container.name,
-                                   config.notifier, notify_mode, log, is_fail=backup_failed,
-                                   message="Failed commands: {}".format(
-                                       '\n'.join(failed_commands)) if failed_commands else None)
+            hc.perform_healthcheck(
+                config.default_healthcheck,
+                container.backup.healthchecks,
+                container.name,
+                config.notifier,
+                notify_mode,
+                log,
+                is_fail=backup_failed,
+                message="Failed commands: {}".format("\n".join(failed_commands)) if failed_commands else None,
+            )
 
         success = success and not backup_failed
 
     return success
 
 
-def perform_get_backups(config: Config, project_name: str, containers: List[Container], only_most_recent: bool, log: logging.Logger, only_identifier: str = None):
+def perform_get_backups(
+    config: Config,
+    project_name: str,
+    containers: List[Container],
+    only_most_recent: bool,
+    log: logging.Logger,
+    only_identifier: str = None,
+):
     backup_paths = get_backups(config, project_name, containers, only_most_recent, log, only_identifier)
     if backup_paths is None:
         return False
@@ -170,7 +242,16 @@ def perform_get_backups(config: Config, project_name: str, containers: List[Cont
     return True
 
 
-def perform_copy_backups(config: Config, project_name: str, containers: List[Container], only_most_recent: bool, destinations: List[str], log: logging.Logger, only_identifier: str = None, overwrite: bool = False):
+def perform_copy_backups(
+    config: Config,
+    project_name: str,
+    containers: List[Container],
+    only_most_recent: bool,
+    destinations: List[str],
+    log: logging.Logger,
+    only_identifier: str = None,
+    overwrite: bool = False,
+):
     backup_paths = get_backups(config, project_name, containers, only_most_recent, log, only_identifier)
     if backup_paths is None:
         return False

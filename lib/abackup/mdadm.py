@@ -13,28 +13,31 @@ def pool_status(name: str, path: str, log: logging.Logger = None):
         log.debug(stats)
 
     mdstat_data = mdstat.parse()
-    if name not in mdstat_data['devices']:
+    if name not in mdstat_data["devices"]:
         if log:
             log.error("Pool {} not found in mdstat!".format(name))
         return PoolStatus(name, path, PoolState.ERROR, [], stats.total_size, stats.used)
-    pool_data = mdstat_data['devices'][name]
+    pool_data = mdstat_data["devices"][name]
     if log:
         log.debug("pool_status({}, {}): pool_data:".format(name, path))
         log.debug(pool_data)
 
-    is_active = pool_data['active']
-    raid_disks = pool_data['status']['raid_disks']
-    non_degraded_disks = pool_data['status']['non_degraded_disks']
-    disks = pool_data['disks']
-    drive_status = [DriveStatus(disk_name, PoolState.DOWN if raw['faulty'] else PoolState.HEALTHY) for disk_name, raw in
-                    disks.items()]
+    is_active = pool_data["active"]
+    raid_disks = pool_data["status"]["raid_disks"]
+    non_degraded_disks = pool_data["status"]["non_degraded_disks"]
+    disks = pool_data["disks"]
+    drive_status = [
+        DriveStatus(disk_name, PoolState.DOWN if raw["faulty"] else PoolState.HEALTHY)
+        for disk_name, raw in disks.items()
+    ]
 
     if log:
         log.debug("pool_status({}, {}): is_active: {}".format(name, path, is_active))
         log.debug("pool_status({}, {}): raid_disks: {}".format(name, path, raid_disks))
         log.debug("pool_status({}, {}): non_degraded_disks: {}".format(name, path, non_degraded_disks))
-        log.debug("pool_status({}, {}): drive_status: {}".format(name, path,
-                                                                 "\t".join([str(ds) for ds in drive_status])))
+        log.debug(
+            "pool_status({}, {}): drive_status: {}".format(name, path, "\t".join([str(ds) for ds in drive_status]))
+        )
 
     pool_state = PoolState.HEALTHY
     if not is_active:

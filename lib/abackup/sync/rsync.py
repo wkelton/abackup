@@ -12,9 +12,22 @@ from abackup.sync import AutoSync, Config, DataDir, Remote, RsyncOptions, syncin
 
 
 class RsyncInfo(syncinfo.SyncInfo):
-    def __init__(self, sync_name: str, sync_type: str, timestamp: datetime.datetime, duration: datetime.timedelta,
-                 origin: str, destination: str, sync_count: int, sync_deleted: int, sync_bytes: int,
-                 transferred_files: List[str], deleted_files: List[str], remote_host: str = None, pull: bool = False):
+    def __init__(
+        self,
+        sync_name: str,
+        sync_type: str,
+        timestamp: datetime.datetime,
+        duration: datetime.timedelta,
+        origin: str,
+        destination: str,
+        sync_count: int,
+        sync_deleted: int,
+        sync_bytes: int,
+        transferred_files: List[str],
+        deleted_files: List[str],
+        remote_host: str = None,
+        pull: bool = False,
+    ):
         self.origin = origin
         self.destination = destination
         self.remote_host = remote_host
@@ -24,27 +37,34 @@ class RsyncInfo(syncinfo.SyncInfo):
         self.sync_bytes = sync_bytes
         self.transferred_files = transferred_files
         self.deleted_files = deleted_files
-        super().__init__(sync_name, sync_type, timestamp, duration,
-                         {'remote_host': remote_host,
-                          'origin': origin,
-                          'destination': destination,
-                          'pull': pull
-                          },
-                         {'sync_count': sync_count,
-                          'sync_deleted': sync_deleted,
-                          'sync_bytes': fs.to_human_readable(sync_bytes),
-                          'transferred_files': transferred_files,
-                          'deleted_files': deleted_files
-                          })
+        super().__init__(
+            sync_name,
+            sync_type,
+            timestamp,
+            duration,
+            {"remote_host": remote_host, "origin": origin, "destination": destination, "pull": pull},
+            {
+                "sync_count": sync_count,
+                "sync_deleted": sync_deleted,
+                "sync_bytes": fs.to_human_readable(sync_bytes),
+                "transferred_files": transferred_files,
+                "deleted_files": deleted_files,
+            },
+        )
 
     def __str__(self):
         return "Sync {}: {} at {} for {} from {} to {} --- transferred {} files with {} bytes".format(
-            self.name, self.sync_type, self.timestamp, self.duration,
-            "{}:{}".format(
-                self.remote_host, self.origin) if self.remote_host and self.pull else self.origin,
-            "{}:{}".format(self.remote_host,
-                           self.destination) if self.remote_host and not self.pull else self.destination,
-            self.sync_count, self.sync_bytes)
+            self.name,
+            self.sync_type,
+            self.timestamp,
+            self.duration,
+            "{}:{}".format(self.remote_host, self.origin) if self.remote_host and self.pull else self.origin,
+            "{}:{}".format(self.remote_host, self.destination)
+            if self.remote_host and not self.pull
+            else self.destination,
+            self.sync_count,
+            self.sync_bytes,
+        )
 
     def flatten_transfer_info(self, pretty: bool = True):
         m = {}
@@ -53,7 +73,7 @@ class RsyncInfo(syncinfo.SyncInfo):
             if k == "transferred_files" or k == "deleted_files":
                 value = len(v)
             if pretty:
-                m[k.replace('_', ' ').title()] = value
+                m[k.replace("_", " ").title()] = value
             else:
                 m[k] = value
         return m
@@ -61,7 +81,9 @@ class RsyncInfo(syncinfo.SyncInfo):
 
 def get_path_from_remote(command: str, data_name: str, remote: Remote, absync_options: str, log: logging.Logger):
     absync_command = "absync {} {} {}".format(absync_options, command, data_name)
-    run_out = RemoteCommand(remote.ssh_options(), remote.connection_string(), absync_command, universal_newlines=True).run_with_result(log)
+    run_out = RemoteCommand(
+        remote.ssh_options(), remote.connection_string(), absync_command, universal_newlines=True
+    ).run_with_result(log)
 
     if run_out.returncode == 0:
         path = run_out.stdout
@@ -75,37 +97,41 @@ def get_path_from_remote(command: str, data_name: str, remote: Remote, absync_op
 
 
 def get_owned_path_from_remote(owned_data_name: str, remote: Remote, absync_options: str, log: logging.Logger):
-    return get_path_from_remote('owned-path', owned_data_name, remote, absync_options, log)
+    return get_path_from_remote("owned-path", owned_data_name, remote, absync_options, log)
 
 
 def get_stored_path_from_remote(stored_data_name: str, remote: Remote, absync_options: str, log: logging.Logger):
-    return get_path_from_remote('stored-path', stored_data_name, remote, absync_options, log)
+    return get_path_from_remote("stored-path", stored_data_name, remote, absync_options, log)
 
 
-def do_rsync(origin: str, destination: str, rsync_options: RsyncOptions, log: logging.Logger, sync_name: str = 'manual',
-             sync_type: str = 'manual', remote: Remote = None, pull: bool = False):
-    command_list = ['rsync', '-az', '--stats', '--info=del', '--info=name']
+def do_rsync(
+    origin: str,
+    destination: str,
+    rsync_options: RsyncOptions,
+    log: logging.Logger,
+    sync_name: str = "manual",
+    sync_type: str = "manual",
+    remote: Remote = None,
+    pull: bool = False,
+):
+    command_list = ["rsync", "-az", "--stats", "--info=del", "--info=name"]
     command_list.extend(rsync_options.options_list())
     if remote:
         if remote.ssh_options():
-            command_list.extend(
-                ['-e', "ssh {}".format(" ".join(remote.ssh_options()))])
+            command_list.extend(["-e", "ssh {}".format(" ".join(remote.ssh_options()))])
         if pull:
-            command_list.append("{}:{}".format(
-                remote.connection_string(), origin))
+            command_list.append("{}:{}".format(remote.connection_string(), origin))
             command_list.append(destination)
         else:
             command_list.append(origin)
-            command_list.append("{}:{}".format(
-                remote.connection_string(), destination))
+            command_list.append("{}:{}".format(remote.connection_string(), destination))
     else:
         command_list.append(origin)
         command_list.append(destination)
     log.info("Running rsync...")
     log.debug(command_list)
     timestamp = datetime.datetime.now()
-    run_out = subprocess.run(command_list, stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE, universal_newlines=True)
+    run_out = subprocess.run(command_list, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
     duration = datetime.datetime.now() - timestamp
     if run_out.returncode == 0:
         log.info("rsync succeeded")
@@ -117,8 +143,7 @@ def do_rsync(origin: str, destination: str, rsync_options: RsyncOptions, log: lo
         sync_bytes = 0
         deleted_files_regex = re.compile(r"^deleting\s+(.*)$")
         transferred_regex = re.compile(r"^([^/]+/(?:[^/]+/*)*)$")
-        count_regex = re.compile(
-            r"Number of regular files transferred:\s+([\d,]+)")
+        count_regex = re.compile(r"Number of regular files transferred:\s+([\d,]+)")
         deleted_regex = re.compile(r"Number of deleted files:\s+([\d,]+)")
         if pull:
             bytes_regex = re.compile(r"Total bytes received:\s+([\d,]+)")
@@ -144,9 +169,22 @@ def do_rsync(origin: str, destination: str, rsync_options: RsyncOptions, log: lo
             if bytes_match:
                 sync_bytes = locale.atoi(bytes_match.group(1))
         if len(transferred_files) == max_transferred_files:
-            transferred_files.append('...')
-        info = RsyncInfo(sync_name, sync_type, timestamp, duration, origin, destination, sync_count, sync_deleted,
-                         sync_bytes, transferred_files, deleted_files, remote.host if remote else None, pull)
+            transferred_files.append("...")
+        info = RsyncInfo(
+            sync_name,
+            sync_type,
+            timestamp,
+            duration,
+            origin,
+            destination,
+            sync_count,
+            sync_deleted,
+            sync_bytes,
+            transferred_files,
+            deleted_files,
+            remote.host if remote else None,
+            pull,
+        )
         log.info(info)
         return info
     else:
@@ -156,8 +194,18 @@ def do_rsync(origin: str, destination: str, rsync_options: RsyncOptions, log: lo
         return False
 
 
-def do_auto_rsync(config: Config, data_name: str, data_dir: DataDir, auto_sync: AutoSync, absync_options: str, notify: str,
-                  log: logging.Logger, sync_type: str = 'manual', pull: bool = False, do_healthchecks: bool = True):
+def do_auto_rsync(
+    config: Config,
+    data_name: str,
+    data_dir: DataDir,
+    auto_sync: AutoSync,
+    absync_options: str,
+    notify: str,
+    log: logging.Logger,
+    sync_type: str = "manual",
+    pull: bool = False,
+    do_healthchecks: bool = True,
+):
     sync_info = None
     notify_mode = notifications.Mode(notify)
 
@@ -165,8 +213,9 @@ def do_auto_rsync(config: Config, data_name: str, data_dir: DataDir, auto_sync: 
     remote = config.remotes[remote_name]
 
     if do_healthchecks and auto_sync.healthchecks:
-        hc.perform_healthcheck_start(config.default_healthcheck, auto_sync.healthchecks, remote_name,
-                                     config.notifier, notify_mode, log)
+        hc.perform_healthcheck_start(
+            config.default_healthcheck, auto_sync.healthchecks, remote_name, config.notifier, notify_mode, log
+        )
 
     if auto_sync.pre_commands:
         commands = build_commands(
@@ -186,43 +235,54 @@ def do_auto_rsync(config: Config, data_name: str, data_dir: DataDir, auto_sync: 
     error_message = None
     have_remote_path = True
     if pull:
-        origin = get_owned_path_from_remote(
-            data_name, remote, absync_options, log)
+        origin = get_owned_path_from_remote(data_name, remote, absync_options, log)
         destination = data_dir.path
         if not origin:
-            error_message = "Failed to get owned path from {}!".format(
-                auto_sync.driver.settings.remote_name)
-            syncinfo.handle_failed_sync(config.notifier, data_name,
-                                        remote_name, pull, error_message, notify_mode, log)
+            error_message = "Failed to get owned path from {}!".format(auto_sync.driver.settings.remote_name)
+            syncinfo.handle_failed_sync(config.notifier, data_name, remote_name, pull, error_message, notify_mode, log)
             have_remote_path = False
     else:
         origin = data_dir.path
-        destination = get_stored_path_from_remote(
-            data_name, remote, absync_options, log)
+        destination = get_stored_path_from_remote(data_name, remote, absync_options, log)
         if not destination:
-            error_message = "Failed to get stored path from {}!".format(
-                auto_sync.driver.settings.remote_name)
-            syncinfo.handle_failed_sync(config.notifier, data_name,
-                                        remote_name, pull, error_message, notify_mode, log)
+            error_message = "Failed to get stored path from {}!".format(auto_sync.driver.settings.remote_name)
+            syncinfo.handle_failed_sync(config.notifier, data_name, remote_name, pull, error_message, notify_mode, log)
             have_remote_path = False
 
     if have_remote_path:
-        log.info("syncing {} with {}".format("{}:{}".format(remote_name, origin) if pull else origin,
-                                             "{}:{}".format(remote_name, destination) if not pull else destination))
-        ret = do_rsync(origin, destination, data_dir.rsync_options.mask(
-                       auto_sync.driver.settings.options), log, auto_sync.sync_name, sync_type, remote, pull)
+        log.info(
+            "syncing {} with {}".format(
+                "{}:{}".format(remote_name, origin) if pull else origin,
+                "{}:{}".format(remote_name, destination) if not pull else destination,
+            )
+        )
+        ret = do_rsync(
+            origin,
+            destination,
+            data_dir.rsync_options.mask(auto_sync.driver.settings.options),
+            log,
+            auto_sync.sync_name,
+            sync_type,
+            remote,
+            pull,
+        )
         if not ret:
-            error_message = "Failed syncing with {}!".format(
-                auto_sync.driver.settings.remote_name)
-            syncinfo.handle_failed_sync(config.notifier, data_name,
-                                        remote_name, pull, error_message, notify_mode, log)
+            error_message = "Failed syncing with {}!".format(auto_sync.driver.settings.remote_name)
+            syncinfo.handle_failed_sync(config.notifier, data_name, remote_name, pull, error_message, notify_mode, log)
         else:
-            syncinfo.handle_sync_results(config.notifier, data_name,
-                                         remote_name, pull, ret, notify_mode, log)
+            syncinfo.handle_sync_results(config.notifier, data_name, remote_name, pull, ret, notify_mode, log)
             sync_info = ret
 
     if do_healthchecks and auto_sync.healthchecks:
-        hc.perform_healthcheck(config.default_healthcheck, auto_sync.healthchecks, remote_name,
-                               config.notifier, notify_mode, log, is_fail=sync_info is None, message=error_message)
+        hc.perform_healthcheck(
+            config.default_healthcheck,
+            auto_sync.healthchecks,
+            remote_name,
+            config.notifier,
+            notify_mode,
+            log,
+            is_fail=sync_info is None,
+            message=error_message,
+        )
 
     return sync_info

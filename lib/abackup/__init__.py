@@ -5,8 +5,14 @@ from typing import Any, Callable, List
 
 
 class Command:
-    def __init__(self, command_string: str, input: str = None, input_path: str = None, output_path: str = None,
-                 universal_newlines: bool = None):
+    def __init__(
+        self,
+        command_string: str,
+        input: str = None,
+        input_path: str = None,
+        output_path: str = None,
+        universal_newlines: bool = None,
+    ):
         self.command_string = command_string
         self.input_str = input
         self.input_path = input_path
@@ -25,7 +31,7 @@ class Command:
             if self.input_str:
                 self._input = self.input_str.encode()
             elif self.input_path:
-                with open(self.input_path, 'rb') as in_file:
+                with open(self.input_path, "rb") as in_file:
                     self._input = in_file.read()
         return self._input
 
@@ -36,14 +42,24 @@ class Command:
     def _run_with_result(self, command: str, log: logging.Logger):
         log.debug("Command::_run({}, {}):".format(command, self.output_path))
         if self.capture_output:
-            with open(self.output_path, 'wb') as output:
-                run_result = subprocess.run(shlex.split(command), input=self.encoded_input(), check=False,
-                                            stdout=output, stderr=subprocess.PIPE,
-                                            universal_newlines=self.universal_newlines)
+            with open(self.output_path, "wb") as output:
+                run_result = subprocess.run(
+                    shlex.split(command),
+                    input=self.encoded_input(),
+                    check=False,
+                    stdout=output,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=self.universal_newlines,
+                )
         else:
-            run_result = subprocess.run(shlex.split(command), input=self.encoded_input(), check=False,
-                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                        universal_newlines=self.universal_newlines)
+            run_result = subprocess.run(
+                shlex.split(command),
+                input=self.encoded_input(),
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=self.universal_newlines,
+            )
         if run_result.returncode != 0:
             log.critical("COMMAND FAILED: {}".format(command))
             if self.universal_newlines:
@@ -63,9 +79,18 @@ class Command:
 
 
 class RemoteCommand(Command):
-    def __init__(self, ssh_options: List[str], ssh_connection_string: str, command_string: str, do_not_wrap_command: bool = False,
-                 input: str = None, input_path: str = None, output_path: str = None, universal_newlines: bool = None):
-        ssh_command_list = ['ssh'] + ssh_options + [ssh_connection_string]
+    def __init__(
+        self,
+        ssh_options: List[str],
+        ssh_connection_string: str,
+        command_string: str,
+        do_not_wrap_command: bool = False,
+        input: str = None,
+        input_path: str = None,
+        output_path: str = None,
+        universal_newlines: bool = None,
+    ):
+        ssh_command_list = ["ssh"] + ssh_options + [ssh_connection_string]
         if do_not_wrap_command:
             command_string = " ".join(ssh_command_list) + " " + command_string
         else:

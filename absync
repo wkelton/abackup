@@ -17,49 +17,47 @@ from abackup.sync.updatecron import perform_update_cron
 
 @click.group()
 @click.pass_context
-@click.option('--no-log', flag_value=True, help="Disable logging")
-@click.option('--debug', flag_value=True, help="Enable debug-level of logging")
-@click.option('--config', type=click.Path(exists=True), default=os.path.join(os.path.expanduser('~'),
-                                                                             '.abackup/sync.yml'),
-              help="Path to global configuration file, defaults to ~/.abackup/sync.yml")
-@click.option('--user', help='User to run cron commands for')
+@click.option("--no-log", flag_value=True, help="Disable logging")
+@click.option("--debug", flag_value=True, help="Enable debug-level of logging")
+@click.option(
+    "--config",
+    type=click.Path(exists=True),
+    default=os.path.join(os.path.expanduser("~"), ".abackup/sync.yml"),
+    help="Path to global configuration file, defaults to ~/.abackup/sync.yml",
+)
+@click.option("--user", help="User to run cron commands for")
 def cli(ctx, no_log: bool, debug: bool, config: str, user: str):
-    """absync - a script for syncing data between hosts
-    """
+    """absync - a script for syncing data between hosts"""
     config_path = config
     config = Config(config_path, no_log, debug)
-    cron = appcron.AppCronTab('absync', user, config.log)
+    cron = appcron.AppCronTab("absync", user, config.log)
     absync_options = []
     if debug:
-        absync_options.append('--debug')
+        absync_options.append("--debug")
     if no_log:
-        absync_options.append('--no-log')
-    if config_path != os.path.join(os.path.expanduser('~'), '.abackup/sync.yml'):
-        absync_options.extend(['--config', config_path])
+        absync_options.append("--no-log")
+    if config_path != os.path.join(os.path.expanduser("~"), ".abackup/sync.yml"):
+        absync_options.extend(["--config", config_path])
     if user:
-        absync_options.extend(['--user', user])
-    ctx.obj = {'config': config,
-               'cron': cron,
-               'log': config.log,
-               'absync_options': " ".join(absync_options)}
-    locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+        absync_options.extend(["--user", user])
+    ctx.obj = {"config": config, "cron": cron, "log": config.log, "absync_options": " ".join(absync_options)}
+    locale.setlocale(locale.LC_ALL, "en_US.UTF-8")
 
 
-@cli.command('log')
+@cli.command("log")
 @click.pass_context
 def log_command(ctx):
     """Display the log on the terminal"""
-    subprocess.run(['less', '+G', ctx.obj['config'].log_path])
+    subprocess.run(["less", "+G", ctx.obj["config"].log_path])
 
 
-@cli.command('stored-path')
+@cli.command("stored-path")
 @click.pass_context
-@click.argument('name')
+@click.argument("name")
 def stored_path_command(ctx, name: str):
-    """Get the path to the stored data for NAME
-    """
-    config = ctx.obj['config']
-    log = ctx.obj['log']
+    """Get the path to the stored data for NAME"""
+    config = ctx.obj["config"]
+    log = ctx.obj["log"]
 
     log.info("--- stored-path lookup for {}".format(name))
     if name in config.stored_data:
@@ -74,14 +72,13 @@ def stored_path_command(ctx, name: str):
         exit(1)
 
 
-@cli.command('owned-path')
+@cli.command("owned-path")
 @click.pass_context
-@click.argument('name')
+@click.argument("name")
 def owned_path_command(ctx, name: str):
-    """Get the path to the owned data for NAME
-    """
-    config = ctx.obj['config']
-    log = ctx.obj['log']
+    """Get the path to the owned data for NAME"""
+    config = ctx.obj["config"]
+    log = ctx.obj["log"]
 
     log.info("--- owned-path lookup for {}".format(name))
     if name in config.owned_data:
@@ -96,33 +93,34 @@ def owned_path_command(ctx, name: str):
         exit(1)
 
 
-@cli.command('examine')
+@cli.command("examine")
 @click.pass_context
-@click.option('--data-dir', help="Data directory to examine. "
-                                 "In not specified, all configured data directories are used.")
+@click.option(
+    "--data-dir", help="Data directory to examine. " "In not specified, all configured data directories are used."
+)
 def examine_command(ctx, data_dir: str):
     """Display sync information for configured data directories
 
     This will print to the terminal: owned_data info, latest syncs, stored_data info, crontab jobs
     """
-    config = ctx.obj['config']
-    cron = ctx.obj['cron']
-    log = ctx.obj['log']
+    config = ctx.obj["config"]
+    cron = ctx.obj["cron"]
+    log = ctx.obj["log"]
 
     perform_examine(config, cron, log)
 
 
-@cli.command('update-cron')
+@cli.command("update-cron")
 @click.pass_context
 def update_cron_command(ctx):
     """Update crontab with configured auto_sync settings
 
     This will add or update the crontab entry with auto_sync settings for configured owned_data.
     """
-    config = ctx.obj['config']
-    cron = ctx.obj['cron']
-    log = ctx.obj['log']
-    absync_options = ctx.obj['absync_options']
+    config = ctx.obj["config"]
+    cron = ctx.obj["cron"]
+    log = ctx.obj["log"]
+    absync_options = ctx.obj["absync_options"]
 
     log.info("--- Updating crontab")
 
@@ -133,17 +131,17 @@ def update_cron_command(ctx):
     if ret:
         log.info("--- Crontab updated.")
     else:
-        log.critical('--- Crontab not updated!')
+        log.critical("--- Crontab not updated!")
         exit(1)
 
 
-@cli.command('push')
+@cli.command("push")
 @click.pass_context
-@click.option('--delete', flag_value=True, help="Disable/enable deletion of data during sync.")
-@click.option('--max-delete', type=int, help="Only allow deletion of this many files during sync.")
-@click.option('--port', help="Port to use when connecting to remote.")
-@click.argument('local-name')
-@click.argument('destination')
+@click.option("--delete", flag_value=True, help="Disable/enable deletion of data during sync.")
+@click.option("--max-delete", type=int, help="Only allow deletion of this many files during sync.")
+@click.option("--port", help="Port to use when connecting to remote.")
+@click.argument("local-name")
+@click.argument("destination")
 def push_command(ctx, delete: bool, max_delete: int, port: int, local_name: str, destination: str):
     """Push LOCAL_NAME data to DESTINATION
 
@@ -152,8 +150,8 @@ def push_command(ctx, delete: bool, max_delete: int, port: int, local_name: str,
     LOCAL_NAME must be a a name of a configured owned_data path.
     DESTINATION can be on a remote.
     """
-    config = ctx.obj['config']
-    log = ctx.obj['log']
+    config = ctx.obj["config"]
+    log = ctx.obj["log"]
 
     log.info("--- push started")
 
@@ -162,17 +160,17 @@ def push_command(ctx, delete: bool, max_delete: int, port: int, local_name: str,
     if ret:
         log.info("--- push finished.")
     else:
-        log.critical('--- push failed!')
+        log.critical("--- push failed!")
         exit(1)
 
 
-@cli.command('pull')
+@cli.command("pull")
 @click.pass_context
-@click.option('--delete', flag_value=True, help="Disable/enable deletion of data during sync.")
-@click.option('--max-delete', type=int, help="Only allow deletion of this many files during sync.")
-@click.option('--port', help="Port to use when connecting to remote.")
-@click.argument('stored-name')
-@click.argument('source')
+@click.option("--delete", flag_value=True, help="Disable/enable deletion of data during sync.")
+@click.option("--max-delete", type=int, help="Only allow deletion of this many files during sync.")
+@click.option("--port", help="Port to use when connecting to remote.")
+@click.argument("stored-name")
+@click.argument("source")
 def pull_command(ctx, delete: bool, max_delete: int, port: int, stored_name: str, source: str):
     """Pull STORED_NAME data from SOURCE
 
@@ -181,8 +179,8 @@ def pull_command(ctx, delete: bool, max_delete: int, port: int, stored_name: str
     STORED_NAME must be a a name of a configured stored_data path.
     SOURCE can be on a remote.
     """
-    config = ctx.obj['config']
-    log = ctx.obj['log']
+    config = ctx.obj["config"]
+    log = ctx.obj["log"]
 
     log.info("--- pull started")
 
@@ -191,55 +189,64 @@ def pull_command(ctx, delete: bool, max_delete: int, port: int, stored_name: str
     if ret:
         log.info("--- pull finished.")
     else:
-        log.critical('--- pull failed!')
+        log.critical("--- pull failed!")
         exit(1)
 
 
-@cli.command('auto')
+@cli.command("auto")
 @click.pass_context
-@click.option('--data-name', help="owned_data or stored_data name to limit syncing.")
-@click.option('--sync-name', help="Name of the auto sync (in auto_sync settings) to limit syncing.")
-@click.option('--sync-type', type=click.Choice(['manual', 'auto']), default='manual',
-              help="Name for the type of sycning, used for logging. Defaults to 'manual'.")
-@click.option('--notify', type=click.Choice(['auto', 'always', 'never']), default='never',
-              help="Notification setting, auto: notify on failure, always: always notify, never: never notify. "
-                   "Defaults to never.")
-@click.option('--healthchecks', flag_value=True, help="Perform healthcheks if configured.")
+@click.option("--data-name", help="owned_data or stored_data name to limit syncing.")
+@click.option("--sync-name", help="Name of the auto sync (in auto_sync settings) to limit syncing.")
+@click.option(
+    "--sync-type",
+    type=click.Choice(["manual", "auto"]),
+    default="manual",
+    help="Name for the type of sycning, used for logging. Defaults to 'manual'.",
+)
+@click.option(
+    "--notify",
+    type=click.Choice(["auto", "always", "never"]),
+    default="never",
+    help="Notification setting, auto: notify on failure, always: always notify, never: never notify. "
+    "Defaults to never.",
+)
+@click.option("--healthchecks", flag_value=True, help="Perform healthcheks if configured.")
 def auto_command(ctx, data_name: str, sync_name: str, sync_type: str, notify: str, healthchecks: bool):
     """Run all the configured auto syncs.
 
     This will run the sync for all owned_data and stored_data which has configured auto_sync settings.
     """
-    config = ctx.obj['config']
-    log = ctx.obj['log']
-    absync_options = ctx.obj['absync_options']
+    config = ctx.obj["config"]
+    log = ctx.obj["log"]
+    absync_options = ctx.obj["absync_options"]
 
     log.info("--- auto sync started")
 
-    ret = perform_auto_sync(config, absync_options, notify, log, data_name, sync_name, sync_type,
-                            do_healthchecks=healthchecks)
+    ret = perform_auto_sync(
+        config, absync_options, notify, log, data_name, sync_name, sync_type, do_healthchecks=healthchecks
+    )
 
     if ret:
         log.info("--- auto sync finished.")
     else:
-        log.critical('--- auto sync failed!')
+        log.critical("--- auto sync failed!")
         exit(1)
 
 
-@cli.command('copy-most-recent')
+@cli.command("copy-most-recent")
 @click.pass_context
-@click.option('--overwrite', flag_value=True, help="Overwrite destinations if they exist.")
-@click.argument('stored-name')
-@click.argument('relative-path')
-@click.argument('destinations', nargs=-1)
+@click.option("--overwrite", flag_value=True, help="Overwrite destinations if they exist.")
+@click.argument("stored-name")
+@click.argument("relative-path")
+@click.argument("destinations", nargs=-1)
 def copy_most_recent_command(ctx, overwrite: bool, stored_name: str, relative_path: bool, destinations: List[str]):
     """Copy most recent backup file of stored data.
 
     stored-name:   Name of the stored data path.
     relative-path: Relative path to directory containing backup files.
     """
-    config = ctx.obj['config']
-    log = ctx.obj['log']
+    config = ctx.obj["config"]
+    log = ctx.obj["log"]
 
     log.info("--- copy-most-recent {}:{}".format(stored_name, relative_path))
 
