@@ -9,6 +9,7 @@ from abackup.docker import BackupFileSettings, Command, DockerCommand, Directory
     PostgresRestoreCommand, TarBackupSettings
 
 
+# TODO: replace with build_commands in init
 def build_commands(command_input: List[Any], container_name: str):
     commands = []
     if command_input:
