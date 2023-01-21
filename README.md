@@ -171,9 +171,10 @@ owned_data: # optional
     driver_common_settings:
       - type: rsync
         settings:
-          delete: False # optional
-          max_delete: 10 # optional
-          copy_unsafe_links: False # optional
+          delete: False # default
+          max_delete: 10 # default
+          copy_unsafe_links: False # default
+          inplace: False # default
       - type: restic
         settings:
           global_options: # optional
@@ -194,6 +195,15 @@ owned_data: # optional
             remote_name: r1
             options: # optional
               delete: True
+        pre_commands: # optional
+          - command_type: command
+            command_string: "some command to run"
+          - command_type: copy_recent_backup_local_on_target
+            copy_recent_backup_local_on_target_options:
+              abackup_config: /some/path/to/backup.yml
+              project_config: /some/path/to/project/.abackup.yml
+              container: container-name
+              identifier: id
       - sync_name: "bar"
         notify: never # optional
         frequency: "0 1 * * *" # optional

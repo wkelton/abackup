@@ -8,8 +8,11 @@ __pycache__/
 
 test/**/logs/
 test/**/data/
+test/**/test_data/
 
 test/abackup/.abackup-tmp/
 
 test/abdata/data.yml
 test/absync/sync.yml
+test/absync/sync_pull.yml
+test/absync/.ssh/
