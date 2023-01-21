@@ -30,9 +30,24 @@ class SlackField:
 
 
 class SlackAttachment:
-    def __init__(self, fallback=None, color=None, pretext=None, author_name=None, author_link=None, author_icon=None,
-                 title=None, title_link=None, text=None, fields=None, image_url=None, thumb_url=None, footer=None,
-                 footer_icon=None, ts=None):
+    def __init__(
+        self,
+        fallback=None,
+        color=None,
+        pretext=None,
+        author_name=None,
+        author_link=None,
+        author_icon=None,
+        title=None,
+        title_link=None,
+        text=None,
+        fields=None,
+        image_url=None,
+        thumb_url=None,
+        footer=None,
+        footer_icon=None,
+        ts=None,
+    ):
         self.fallback = fallback
         self.color = color
         self.pretext = pretext
@@ -61,8 +76,9 @@ class SlackAttachment:
 
 
 class SlackData:
-    def __init__(self, text: str = None, attachments: List[SlackAttachment] = None, username: str = None,
-                 channel: str = None):
+    def __init__(
+        self, text: str = None, attachments: List[SlackAttachment] = None, username: str = None, channel: str = None
+    ):
         self.text = text
         self.attachments = attachments
         self.username = username
@@ -85,13 +101,26 @@ class Severity(Enum):
     GOOD = "good"
 
 
-def build_slack_data(title: str, severity: Severity, description: str = None, fields: Dict[str, Any] = None,
-                     file_name: str = None, line_number: int = None, time: float = None):
+def build_slack_data(
+    title: str,
+    severity: Severity,
+    description: str = None,
+    fields: Dict[str, Any] = None,
+    file_name: str = None,
+    line_number: int = None,
+    time: float = None,
+):
     if fields is None:
         fields = {}
-    attachment = SlackAttachment(title=title, color="good" if severity == Severity.GOOD else "danger",
-                                 text=description, footer="{}:{}".format(file_name, line_number), ts=time,
-                                 fields=[SlackField(k, v) for k, v in fields.items()], fallback=title)
+    attachment = SlackAttachment(
+        title=title,
+        color="good" if severity == Severity.GOOD else "danger",
+        text=description,
+        footer="{}:{}".format(file_name, line_number),
+        ts=time,
+        fields=[SlackField(k, v) for k, v in fields.items()],
+        fallback=title,
+    )
     return SlackData(attachments=[attachment])
 
 
@@ -107,8 +136,16 @@ class SlackNotifier:
         response = requests.post(self.api_url, json=data.to_data())
         return SlackResponse(response.status_code, response.text)
 
-    def notify(self, title: str, severity: Severity, description: str = None, fields: Dict[str, Any] = None,
-               file_name: str = None, line_number: int = None, time: float = None):
+    def notify(
+        self,
+        title: str,
+        severity: Severity,
+        description: str = None,
+        fields: Dict[str, Any] = None,
+        file_name: str = None,
+        line_number: int = None,
+        time: float = None,
+    ):
         if not fields:
             fields = {}
         return self.notify_raw(build_slack_data(title, severity, description, fields, file_name, line_number, time))

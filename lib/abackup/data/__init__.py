@@ -13,8 +13,9 @@ class AutoCheck:
 
 
 class Pool:
-    def __init__(self, name: str, path: str, auto_check: List[Dict[str, str]] = None,
-                 healthchecks: Dict[str, str] = None):
+    def __init__(
+        self, name: str, path: str, auto_check: List[Dict[str, str]] = None, healthchecks: Dict[str, str] = None
+    ):
         self.name = name
         self.path = path
         self.auto_check = [AutoCheck(**check) for check in auto_check] if auto_check else []
@@ -32,7 +33,7 @@ class Config(config.BaseConfig):
         super().__init__("abdata", os.path.dirname(path), no_log, debug)
 
         if path and os.path.isfile(path):
-            with open(path, 'r') as stream:
+            with open(path, "r") as stream:
                 self._raw = yaml.safe_load(stream)
-            if 'drivers' in self._raw:
-                self.drivers = {name: Driver(name, **value) for name, value in self._raw['drivers'].items()}
+            if "drivers" in self._raw:
+                self.drivers = {name: Driver(name, **value) for name, value in self._raw["drivers"].items()}

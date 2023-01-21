@@ -6,8 +6,9 @@ from abackup.fs import DriveStatus, PoolState, PoolStatus, get_fs_stats
 
 
 def pool_status(name: str, path: str, log: logging.Logger = None):
-    run_out = subprocess.run(['zpool', 'status', name], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                             universal_newlines=True)
+    run_out = subprocess.run(
+        ["zpool", "status", name], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True
+    )
     if run_out.returncode != 0 and not run_out.stdout:
         if log:
             log.error("Failed to run 'zpool status'!")
@@ -53,8 +54,7 @@ def pool_status(name: str, path: str, log: logging.Logger = None):
                 log.debug("zfs.pool_status({}, {}): drive name/state: {}/{}".format(name, path, match_name, zfs_state))
             if config_match.group(3):
                 messages.append(config_match.group(3))
-            if match_name != name and not match_name.startswith("mirror-") and \
-                    not match_name.startswith("raidz"):
+            if match_name != name and not match_name.startswith("mirror-") and not match_name.startswith("raidz"):
                 drive_status.append(DriveStatus(match_name, zfs_state_to_pool_state(zfs_state)))
 
     if not state:
@@ -71,5 +71,6 @@ def pool_status(name: str, path: str, log: logging.Logger = None):
         log.debug("zfs.pool_status({}, {}): get_fs_stats({}):".format(name, path, path))
         log.debug(stats)
 
-    return PoolStatus(name, path, state, drive_status, stats.total_size, stats.used,
-                      "\n".join(messages) if messages else None)
+    return PoolStatus(
+        name, path, state, drive_status, stats.total_size, stats.used, "\n".join(messages) if messages else None
+    )
