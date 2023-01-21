@@ -5,8 +5,10 @@ import locale
 import os
 import subprocess
 import sys
+from typing import List
 
 from abackup import appcron
+from abackup.prepare.copy import copy_most_recent_backup_file
 from abackup.sync import Config
 from abackup.sync.examine import perform_examine
 from abackup.sync.sync import perform_rsync, perform_auto_sync
@@ -221,6 +223,39 @@ def auto_command(ctx, data_name: str, sync_name: str, sync_type: str, notify: st
         log.info("--- auto sync finished.")
     else:
         log.critical('--- auto sync failed!')
+        exit(1)
+
+
+@cli.command('copy-most-recent')
+@click.pass_context
+@click.option('--overwrite', flag_value=True, help="Overwrite destinations if they exist.")
+@click.argument('stored-name')
+@click.argument('relative-path')
+@click.argument('destinations', nargs=-1)
+def copy_most_recent_command(ctx, overwrite: bool, stored_name: str, relative_path: bool, destinations: List[str]):
+    """Copy most recent backup file of stored data.
+
+    stored-name:   Name of the stored data path.
+    relative-path: Relative path to directory containing backup files.
+    """
+    config = ctx.obj['config']
+    log = ctx.obj['log']
+
+    log.info("--- copy-most-recent {}:{}".format(stored_name, relative_path))
+
+    if stored_name in config.stored_data:
+        stored_path = config.stored_data[stored_name].path
+
+        ret = copy_most_recent_backup_file(os.path.join(stored_path, relative_path), destinations, log, overwrite)
+
+        if ret:
+            log.info("--- copy-most-recent finished.")
+        else:
+            log.critical("--- copy-most-recent failed!")
+            exit(1)
+    else:
+        log.error("{} not present in config!".format(stored_name))
+        log.critical("--- copy-most-recent failed!")
         exit(1)
 
 
