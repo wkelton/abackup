@@ -1,7 +1,7 @@
 import logging
 import shlex
 import subprocess
-from typing import List
+from typing import Any, Callable, List
 
 
 class Command:
@@ -72,3 +72,57 @@ class RemoteCommand(Command):
             command_string = " ".join(ssh_command_list) + " \"bash --login -c '{}'\"".format(command_string)
 
         super().__init__(command_string, input, input_path, output_path, universal_newlines)
+
+
+class CompositeCommand(Command):
+    def __init__(self, commands: List[Command]):
+        self.commands = commands
+
+        super().__init__(self, "")
+
+    def _run_with_result(self, c: str, log: logging.Logger):
+        composite_result = subprocess.CompletedProcess("", 0, "", "")
+        composite_args = []
+        for command in self.commands:
+            result = command._run_with_result(self, command.command_string, log)
+            composite_args.append(result.args)
+            if result.stdout:
+                composite_result.stdout = composite_result.stdout + result.stdout
+            if result.stderr:
+                composite_result.stderr = composite_result.stderr + result.stderr
+            if result.returncode != 0:
+                composite_result = result.returncode
+                break
+        composite_result.args = " && ".join(composite_args)
+        return composite_result
+
+
+def build_commands(
+    command_input: List[Any],
+    command_types: List[str],
+    construct: Callable[[str, List[Any], logging.Logger], Command],
+    log: logging.Logger,
+) -> List[Command]:
+    commands = []
+    if command_input:
+        for raw_command in command_input:
+            if isinstance(raw_command, dict):
+                command_type = raw_command["command_type"]
+                if command_type in command_types:
+                    command_options_key = "{}_options".format(command_type)
+                    command_options = raw_command[command_options_key] if command_options_key in raw_command else []
+                    command = construct(command_type, command_options, log)
+                    if command:
+                        commands.append(command)
+                    else:
+                        log.error(
+                            "Failed to construct command for {}, command_options:{}".format(
+                                command_type, command_options
+                            )
+                        )
+                        return False
+                else:
+                    commands.append(Command(**{k: v for k, v in raw_command.items() if k != "command_type"}))
+            else:
+                commands.append(Command(raw_command))
+    return commands
