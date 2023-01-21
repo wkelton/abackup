@@ -4,7 +4,9 @@ import logging
 import re
 import subprocess
 from typing import List
-from abackup import RemoteCommand, fs, healthchecks as hc, notifications
+
+from abackup import RemoteCommand, build_commands, fs, healthchecks as hc, notifications
+from abackup.prepare import rsync as prepare_rsync
 
 from abackup.sync import AutoSync, Config, DataDir, Remote, RsyncOptions, syncinfo
 
@@ -91,6 +93,8 @@ def do_rsync(origin: str, destination: str, rsync_options: RsyncOptions, log: lo
             command_list.append('--delete')
     if rsync_options.copy_unsafe_links:
         command_list.append('--copy-unsafe-links')
+    if rsync_options.inplace:
+        command_list.extend(['--inplace', '--no-whole-file'])
     if remote:
         if remote.ssh_options():
             command_list.extend(
@@ -173,6 +177,21 @@ def do_auto_rsync(config: Config, data_name: str, data_dir: DataDir, auto_sync: 
         hc.perform_healthcheck_start(config.default_healthcheck, auto_sync.healthchecks, remote_name,
                                      config.notifier, notify_mode, log)
 
+    if auto_sync.pre_commands:
+        commands = build_commands(
+            auto_sync.pre_commands,
+            ["copy_recent_backup_local_on_target"],
+            prepare_rsync.construct_commands_wrapper(data_name, data_dir.path, absync_options, remote),
+            log,
+        )
+        if not commands:
+            log.critical("failed running pre command, stopping sync for {}".format(data_name))
+            return None
+        for command in commands:
+            if not command.run(log):
+                log.critical("failed running pre command, stopping sync for {}".format(data_name))
+                return None
+
     error_message = None
     have_remote_path = True
     if pull:
@@ -216,30 +235,3 @@ def do_auto_rsync(config: Config, data_name: str, data_dir: DataDir, auto_sync: 
                                config.notifier, notify_mode, log, is_fail=sync_info is None, message=error_message)
 
     return sync_info
-
-
-def prepare_for_sync(config: Config, data_name: str, data_dir: DataDir, auto_sync: AutoSync, absync_options: str,
-                  log: logging.Logger, pull: bool = False):
-
-    remote_name = auto_sync.driver.settings.remote_name
-    remote = config.remotes[remote_name]
-
-
-    if pull:
-        pass
-    else:
-        # backup_paths = get_backups(config, project_name, containers, only_most_recent, log, only_identifier)
-        # abackup --config backup.yml get-backups --container test-mysql --identifier foo
-            # abackup --config backup.yml copy-backups --container test-mysql --identifier foo --most-recent  bar  baz
-
-        backup_dir_names = []
-        absync_command = "absync {} {} --container {} --identifier {} --most-recent {}".format(absync_options, 'copy-backups', container, identifier, " ".join(backup_dir_names))
-        run_result = RemoteCommand(remote.ssh_options(), remote.connection_string(), absync_command, universal_newlines=True).run(log)
-
-        if run_result:
-            log.info("Succeeded getting {} from remote: {}".format(command, path))
-            return True
-        else:
-            log.critical("Failed to get {} from remote!".format(command))
-            return False
-
