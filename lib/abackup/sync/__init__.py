@@ -20,6 +20,7 @@ class RsyncOptions:
         max_delete: int = None,
         copy_unsafe_links: bool = None,
         inplace: bool = None,
+        no_compress: bool = None,
         no_whole_file: bool = None,
         backup: bool = None,
         custom_str: str = None,
@@ -28,6 +29,7 @@ class RsyncOptions:
         self.max_delete = max_delete
         self.copy_unsafe_links = copy_unsafe_links
         self.inplace = inplace
+        self.no_compress = no_compress
         self.no_whole_file = no_whole_file
         self.backup = backup
         self.custom_str = custom_str
@@ -45,6 +47,8 @@ class RsyncOptions:
             options.append("--copy-unsafe-links")
         if self.inplace:
             options.append("--inplace")
+        if not self.no_compress:
+            options.append("-z")
         if self.no_whole_file:
             options.append("--no-whole-file")
         if self.backup:
@@ -70,6 +74,7 @@ class RsyncOptions:
                 settings.max_delete if settings.max_delete is not None else self.max_delete,
                 settings.copy_unsafe_links if settings.copy_unsafe_links is not None else self.copy_unsafe_links,
                 settings.inplace if settings.inplace is not None else self.inplace,
+                settings.no_compress if settings.no_compress is not None else self.no_compress,
                 settings.no_whole_file if settings.no_whole_file is not None else self.no_whole_file,
                 settings.backup if settings.backup is not None else self.backup,
                 settings.custom_str if settings.custom_str is not None else self.custom_str,

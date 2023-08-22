@@ -114,7 +114,7 @@ def do_rsync(
     remote: Remote = None,
     pull: bool = False,
 ):
-    command_list = ["rsync", "-az", "--stats", "--info=del", "--info=name"]
+    command_list = ["rsync", "-a", "--stats", "--info=del", "--info=name"]
     command_list.extend(rsync_options.options_list())
     if remote:
         if remote.ssh_options():
