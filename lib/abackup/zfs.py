@@ -2,8 +2,27 @@ import logging
 import re
 import subprocess
 
-from abackup.fs import DriveStatus, PoolState, PoolStatus, get_fs_stats
+from abackup.fs import DriveStatus, FSStats, PoolState, PoolStatus
 
+
+def pool_stats(name: str, path: str, log: logging.Logger = None):
+    run_out = subprocess.run(
+        ["zfs", "list", "-Hpo", "available,used", name], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True
+    )
+    if run_out.returncode != 0 and not run_out.stdout:
+        if log:
+            log.error("Failed to run 'zfs list'!")
+            log.error(run_out.stderr)
+        return None
+    zlist_output = run_out.stdout.split("\n")
+
+    if log:
+        log.debug("zfs.pool_stats({}, {}):".format(name, path))
+        log.debug(zlist_output)
+    
+    available, used = zlist_output[0].split()
+    return FSStats(float(available) + float(used), float(available))
+    
 
 def pool_status(name: str, path: str, log: logging.Logger = None):
     run_out = subprocess.run(
@@ -66,10 +85,7 @@ def pool_status(name: str, path: str, log: logging.Logger = None):
         if not errors.startswith("No known data errors"):
             messages.append(errors)
 
-    stats = get_fs_stats(path)
-    if log:
-        log.debug("zfs.pool_status({}, {}): get_fs_stats({}):".format(name, path, path))
-        log.debug(stats)
+    stats = pool_stats(name, path, log)
 
     return PoolStatus(
         name, path, state, drive_status, stats.total_size, stats.used, "\n".join(messages) if messages else None
