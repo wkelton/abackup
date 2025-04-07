@@ -53,12 +53,13 @@ class RsyncInfo(syncinfo.SyncInfo):
         )
 
     def __str__(self):
+        origin = self.origin if isinstance(self.origin, str) else ",".join(self.origin)
         return "Sync {}: {} at {} for {} from {} to {} --- transferred {} files with {} bytes".format(
             self.name,
             self.sync_type,
             self.timestamp,
             self.duration,
-            "{}:{}".format(self.remote_host, self.origin) if self.remote_host and self.pull else self.origin,
+            "{}:{}".format(self.remote_host, origin) if self.remote_host and self.pull else origin,
             "{}:{}".format(self.remote_host, self.destination)
             if self.remote_host and not self.pull
             else self.destination,
@@ -264,7 +265,7 @@ def do_auto_rsync(
             origin_str = ",".join(origin)
         log.info(
             "syncing {} with {}".format(
-                "{}:{}".format(remote_name, origin) if pull else origin_str,
+                "{}:{}".format(remote_name, origin_str) if pull else origin_str,
                 "{}:{}".format(remote_name, destination) if not pull else destination,
             )
         )
