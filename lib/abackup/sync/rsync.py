@@ -114,7 +114,7 @@ def do_rsync(
     remote: Remote = None,
     pull: bool = False,
 ):
-    origins = [origin] if origin is str else origin
+    origins = [origin] if isinstance(origin, str) else origin
 
     command_list = ["rsync", "-a", "--stats", "--info=del", "--info=name"]
     command_list.extend(rsync_options.options_list())
@@ -260,7 +260,7 @@ def do_auto_rsync(
 
     if have_remote_path:
         origin_str = origin
-        if origin is not str:
+        if not isinstance(origin, str):
             origin_str = ",".join(origin)
         log.info(
             "syncing {} with {}".format(

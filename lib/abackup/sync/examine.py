@@ -79,7 +79,7 @@ def perform_examine(config: Config, cron: appcron.AppCronTab, log: logging.Logge
                 if "pull" in info.location_info:
                     if info.location_info["pull"]:
                         origin = info.location_info["origin"]
-                        if origin is not str:
+                        if not isinstance(origin, str):
                             origin = "<{} paths>".format(len(origin))
                         rows.append(
                             [
