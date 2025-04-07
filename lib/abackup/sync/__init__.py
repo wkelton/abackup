@@ -67,6 +67,7 @@ class RsyncOptions:
                 self.no_whole_file,
                 self.backup,
                 self.custom_str,
+                self.paths,
             )
         else:
             return RsyncOptions(
@@ -86,9 +87,10 @@ class RsyncOptions:
 
 
 class RsyncSettings:
-    def __init__(self, remote_name: str, options: Dict[str, Any] = None):
+    def __init__(self, remote_name: str, options: Dict[str, Any] = None, paths: List[str] = None):
         self.remote_name = remote_name
         self.options = RsyncOptions(**options) if options else RsyncOptions()
+        self.paths = paths
 
 
 class RsyncDriver:

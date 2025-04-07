@@ -3,7 +3,7 @@ import locale
 import logging
 import re
 import subprocess
-from typing import List
+from typing import List, Union
 
 from abackup import RemoteCommand, build_commands, fs, healthchecks as hc, notifications
 from abackup.prepare import rsync as prepare_rsync
@@ -105,7 +105,7 @@ def get_stored_path_from_remote(stored_data_name: str, remote: Remote, absync_op
 
 
 def do_rsync(
-    origin: str,
+    origin: Union[str, List],
     destination: str,
     rsync_options: RsyncOptions,
     log: logging.Logger,
@@ -114,25 +114,32 @@ def do_rsync(
     remote: Remote = None,
     pull: bool = False,
 ):
+    origins = [origin] if origin is str else origin
+
     command_list = ["rsync", "-a", "--stats", "--info=del", "--info=name"]
     command_list.extend(rsync_options.options_list())
     if remote:
         if remote.ssh_options():
             command_list.extend(["-e", "ssh {}".format(" ".join(remote.ssh_options()))])
         if pull:
-            command_list.append("{}:{}".format(remote.connection_string(), origin))
+            for o in origins:
+                command_list.append("{}:{}".format(remote.connection_string(), o))
             command_list.append(destination)
         else:
-            command_list.append(origin)
+            for o in origins:
+                command_list.append(o)
             command_list.append("{}:{}".format(remote.connection_string(), destination))
     else:
-        command_list.append(origin)
+        for o in origins:
+            command_list.append(o)
         command_list.append(destination)
+
     log.info("Running rsync...")
     log.debug(command_list)
     timestamp = datetime.datetime.now()
     run_out = subprocess.run(command_list, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
     duration = datetime.datetime.now() - timestamp
+
     if run_out.returncode == 0:
         log.info("rsync succeeded")
         deleted_files = []
@@ -235,7 +242,9 @@ def do_auto_rsync(
     error_message = None
     have_remote_path = True
     if pull:
-        origin = get_owned_path_from_remote(data_name, remote, absync_options, log)
+        origin = auto_sync.driver.settings.paths
+        if not origin: 
+            origin = get_owned_path_from_remote(data_name, remote, absync_options, log)
         destination = data_dir.path
         if not origin:
             error_message = "Failed to get owned path from {}!".format(auto_sync.driver.settings.remote_name)
@@ -250,9 +259,12 @@ def do_auto_rsync(
             have_remote_path = False
 
     if have_remote_path:
+        origin_str = origin
+        if origin is not str:
+            origin_str = ",".join(origin)
         log.info(
             "syncing {} with {}".format(
-                "{}:{}".format(remote_name, origin) if pull else origin,
+                "{}:{}".format(remote_name, origin) if pull else origin_str,
                 "{}:{}".format(remote_name, destination) if not pull else destination,
             )
         )

@@ -264,7 +264,13 @@ stored_data:  # optional
   s1:
     path: /path/to/stored/data/s1
     auto_sync: # optional
-      - remote_name: r1
+      - sync_name: "pull-example"
+        driver:
+          type: rsync
+          settings:
+            remote_name: r1
+            paths: # optional - bypass need for abackup on remote
+              - /remote/path/to/file
   s2:
     path: /path/to/stored/data/s2
 

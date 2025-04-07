@@ -78,13 +78,16 @@ def perform_examine(config: Config, cron: appcron.AppCronTab, log: logging.Logge
             for info in sync_infos:
                 if "pull" in info.location_info:
                     if info.location_info["pull"]:
+                        origin = info.location_info["origin"]
+                        if origin is not str:
+                            origin = "<{} paths>".format(len(origin))
                         rows.append(
                             [
                                 name,
                                 "{:7}: {}".format(info.sync_type, info.timestamp),
-                                "{}: {}".format(info.location_info["remote_host"], info.location_info["origin"])
+                                "{}: {}".format(info.location_info["remote_host"], origin)
                                 if info.location_info["remote_host"]
-                                else info.location_info["origin"],
+                                else origin,
                                 "{} (-{})".format(info.transfer_info["sync_count"], info.transfer_info["sync_deleted"]),
                                 info.transfer_info["sync_bytes"],
                                 info.duration,
