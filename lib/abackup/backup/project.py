@@ -105,8 +105,8 @@ class BackupSettings:
 
 
 class MysqlDriverOptions:
-    def __init__(self):
-        pass
+    def __init__(self, is_mariadb: bool = False):
+        self.is_mariadb = is_mariadb
 
 
 def build_mysql_backup_command(
@@ -119,7 +119,7 @@ def build_mysql_backup_command(
     user: str = None,
     options: MysqlDriverOptions = MysqlDriverOptions(),
 ):
-    return MysqlBackupCommand(name, password, backup_path, settings, container_name, docker_options)
+    return MysqlBackupCommand(name, password, backup_path, settings, container_name, docker_options, options.is_mariadb)
 
 
 def build_mysql_restore_command(
@@ -132,7 +132,7 @@ def build_mysql_restore_command(
     user: str = None,
     options: MysqlDriverOptions = MysqlDriverOptions(),
 ):
-    return MysqlRestoreCommand(name, password, backup_path, settings, container_name, docker_options)
+    return MysqlRestoreCommand(name, password, backup_path, settings, container_name, docker_options, is_mariadb=options.is_mariadb)
 
 
 ##

@@ -282,12 +282,13 @@ class MysqlBackupCommand(MySqlBRCommand):
         settings: BackupFileSettings,
         container_name: str,
         docker_options: List[str],
+        is_mariadb: bool = False,
     ):
         sql_backup_file = construct_backup_file(name, backup_path, settings, "sql")
         super().__init__(
             name,
             password,
-            "mysqldump",
+            "mariadb-dump" if is_mariadb else "mysqldump",
             ["--single-transaction"],
             backup_path,
             sql_backup_file,
@@ -307,12 +308,13 @@ class MysqlRestoreCommand(MySqlBRCommand):
         container_name: str,
         docker_options: List[str],
         backup_filename: str = None,
+        is_mariadb: bool = False,
     ):
         sql_backup_file = find_restore_file(backup_filename, name, backup_path, settings, "sql")
         super().__init__(
             name,
             password,
-            "mysql",
+            "mariadb" if is_mariadb else "mysql",
             [],
             backup_path,
             sql_backup_file,
